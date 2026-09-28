@@ -416,6 +416,82 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 :root[data-theme="dark"] .alert.warn{background:rgba(255,150,60,.12);color:#ffcc99;border-color:rgba(255,150,60,.3);}
 .status dd.bad{color:#c95000;}
 
+/* ============================================================
+   説明書（モーダル）
+============================================================ */
+:root{--panel:#fbfcfa;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--panel:#151b17;}}
+:root[data-theme="dark"]{--panel:#151b17;}
+.status-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:14px;}
+.btn-sub{
+  display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 18px;border-radius:980px;cursor:pointer;
+  background:var(--surface-strong);border:1.5px solid var(--corp-border);color:var(--corp-ink);font-size:13px;font-weight:700;
+  transition:background .2s,transform .25s var(--ease-spring);
+}
+.btn-sub:hover{background:var(--corp-pale);transform:scale(1.03);}
+.text-link{font-size:12px;color:var(--text-sub);}
+.alert .acts button{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:980px;font-size:12.5px;font-weight:700;
+  border:1.5px solid currentColor;background:rgba(255,255,255,.55);color:inherit;cursor:pointer;}
+.modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;
+  padding:calc(env(safe-area-inset-top,0px) + 24px) 16px calc(env(safe-area-inset-bottom,0px) + 24px);
+  background:rgba(8,18,12,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.modal.open{display:flex;}
+.modal-panel{background:var(--panel);border-radius:var(--radius-md);width:100%;max-width:660px;max-height:100%;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.3);}
+.modal-head{display:flex;align-items:center;gap:10px;padding:13px 16px 13px 20px;border-bottom:1px solid var(--line);flex:none;}
+.modal-head h3{font-size:15px;font-weight:700;color:var(--dark);flex:1;min-width:0;}
+.modal-close{width:38px;height:38px;border-radius:12px;border:1.5px solid var(--corp-border);background:var(--surface-strong);
+  color:var(--text-sub);font-size:18px;line-height:1;cursor:pointer;flex:none;}
+.modal-close:hover{background:var(--corp-pale);color:var(--dark);}
+.modal-body{position:relative;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:6px 22px 30px;}
+@media (max-width:600px){
+  .modal{padding:0;align-items:stretch;}
+  .modal-panel{max-width:none;border-radius:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+  .modal-body{padding:4px 16px 28px;}
+}
+body.modal-lock{overflow:hidden;}
+/* 説明書の文字組み */
+.guide{font-size:13.5px;line-height:1.8;color:var(--text);}
+.guide > h1:first-child,.guide > h1:first-child + p + p{display:none;}
+.guide > h1:first-child + p{margin-top:14px;}
+.guide h2{font-size:17px;font-weight:800;color:var(--dark);margin:26px 0 10px;padding-top:4px;scroll-margin-top:8px;
+  display:flex;align-items:center;gap:9px;}
+.guide h2::before{content:'';width:6px;height:18px;border-radius:3px;background:var(--corp);flex:none;}
+.guide h3{font-size:14.5px;font-weight:700;color:var(--dark);margin:20px 0 6px;scroll-margin-top:8px;}
+.guide h3.flash,.guide h2.flash{animation:flash 1.6s var(--ease-expo);}
+@keyframes flash{0%,30%{background:var(--corp-pale);box-shadow:0 0 0 8px var(--corp-pale);border-radius:6px;}100%{background:transparent;box-shadow:0 0 0 8px transparent;}}
+.guide p{margin:8px 0;}
+.guide ul,.guide ol{margin:8px 0;padding-left:1.5em;}
+.guide li{margin:4px 0;}
+.guide li > ul,.guide li > ol{margin:4px 0;}
+.guide strong{color:var(--dark);}
+.guide a{color:var(--corp-ink);font-weight:600;}
+.guide code{font-size:.9em;background:var(--corp-pale);border-radius:5px;padding:1px 5px;word-break:break-all;}
+.guide pre{background:#101713;color:#d9f7e4;border-radius:12px;padding:12px 14px;overflow-x:auto;margin:10px 0;}
+.guide pre code{background:none;padding:0;color:inherit;word-break:normal;}
+.guide blockquote{margin:12px 0;padding:10px 14px;border-left:4px solid var(--corp);background:var(--corp-tint);border-radius:0 10px 10px 0;}
+.guide hr{border:0;border-top:1px solid var(--line);margin:22px 0 0;}
+.guide .tbl-scroll{margin:10px 0;}
+.guide .bt{font-size:12.5px;}
+.guide .bt td{vertical-align:top;}
+.guide > ul:first-of-type{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 4px;}
+.guide > ul:first-of-type li{margin:0;}
+.guide > ul:first-of-type a{display:inline-block;border:1.5px solid var(--corp-border);background:var(--surface-strong);
+  border-radius:980px;padding:5px 13px;font-size:12.5px;text-decoration:none;}
+
+/* ダウンロード */
+.dl-box{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;}
+.dl-title{font-size:11.5px;font-weight:700;color:var(--text-faint);margin-bottom:8px;}
+.dl-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1.5px solid var(--corp-border);border-radius:12px;
+  background:var(--surface-strong);text-decoration:none;color:var(--text);transition:background .2s,border-color .2s;}
+.dl-item + .dl-item{margin-top:8px;}
+.dl-item:hover{background:var(--corp-pale);border-color:var(--corp);}
+.dl-ico{width:36px;height:36px;border-radius:10px;background:var(--corp-pale);display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;}
+.dl-text{min-width:0;display:flex;flex-direction:column;}
+.dl-text b{font-size:13px;color:var(--dark);}
+.dl-text small{font-size:11px;color:var(--text-sub);line-height:1.5;}
+.dl-item::after{content:'⬇';margin-left:auto;color:var(--corp-ink);font-weight:700;flex:none;}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
@@ -529,6 +605,21 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
             <dt>次の確認</dt><dd id="stNext">―</dd>
             <dt>連携の期限</dt><dd id="stExpire">―</dd>
           </dl>
+          <div class="status-actions">
+            <button type="button" class="btn-sub" data-guide="top">📘 使い方・直し方を見る</button>
+            <a class="text-link" id="actionsLink" href="#" target="_blank" rel="noopener">実行の記録（GitHub）</a>
+          </div>
+          <div class="dl-box">
+            <div class="dl-title">ダウンロード</div>
+            <a class="dl-item" id="dlZip" href="downloads/spotify-log.zip" download="spotify-log.zip">
+              <span class="dl-ico" aria-hidden="true">🗂</span>
+              <span class="dl-text"><b>ファイル一式（zip）</b><small>再認証.command・説明書・プログラム。Macのフォルダをなくしたときに</small></span>
+            </a>
+            <a class="dl-item" id="dlCsv" href="downloads/plays.csv" download="spotify-plays.csv">
+              <span class="dl-ico" aria-hidden="true">📄</span>
+              <span class="dl-text"><b>再生記録（CSV）</b><small id="dlCsvNote">これまでの全再生。Excelで開けます</small></span>
+            </a>
+          </div>
           <p class="hint">Spotifyの再生履歴を1時間ごとに確認して記録しています。連携の期限は約半年ごとに来るので、近づいたらこのページでお知らせします。プライベートセッション中の再生と30秒未満の再生は記録されません。</p>
         </div>
       </section>
@@ -536,6 +627,16 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 
   </div>
 </main>
+
+<div class="modal" id="guideModal" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h3 id="guideTitle">使い方・直し方</h3>
+      <button type="button" class="modal-close" id="guideClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="modal-body" id="guideBody"><div class="guide" id="guide"></div></div>
+  </div>
+</div>
 
 <footer class="foot">
   再生時間は「曲の長さ×再生回数」で計算した目安です。データの取得元はSpotifyです。
@@ -792,29 +893,29 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
   $('stLast').textContent = stamp(LAST_PLAY);
   var notice = '';
   var FIX = {
-    token_expired: {cls:'err', title:'Spotifyとの連携が切れています', body:'連携の期限（約半年）が来たか、連携が解除されました。Macで次の手順を行うと元に戻ります。',
+    token_expired: {key:'A', cls:'err', title:'Spotifyとの連携が切れています', body:'連携の期限（約半年）が来たか、連携が解除されました。Macで次の手順を行うと元に戻ります。',
       steps:['Macで「spotify-log」フォルダの「再認証.command」をダブルクリック','Spotifyの画面で「同意する」を押す','自動で開くGitHubの画面で ⌘+V を押し、「Update secret」を押す']},
-    bad_client: {cls:'err', title:'Spotifyのアプリ情報が正しくありません', body:'GitHubに登録した Client ID か Client Secret が、Spotifyのものと一致していません。',
+    bad_client: {key:'B', cls:'err', title:'Spotifyのアプリ情報が正しくありません', body:'GitHubに登録した Client ID か Client Secret が、Spotifyのものと一致していません。',
       steps:['Spotify for Developers で Client ID と Client Secret を確認','GitHubの「Settings」→「Secrets and variables」→「Actions」で2つを入れ直す']},
-    forbidden: {cls:'err', title:'Spotifyにアクセスを拒否されました', body:'Spotify Premium の契約が切れているか、Spotify側の設定が変わった可能性があります。',
+    forbidden: {key:'C', cls:'err', title:'Spotifyにアクセスを拒否されました', body:'Spotify Premium の契約が切れているか、Spotify側の設定が変わった可能性があります。',
       steps:['Spotify Premium の契約が続いているか確認','Spotify for Developers の「User Management」に自分のメールアドレスがあるか確認']},
-    unknown: {cls:'err', title:'記録中に想定していないエラーが起きました', body:'詳しい内容はGitHubのActionsの画面で確認できます。', steps:[]}
+    unknown: {key:'fix', cls:'err', title:'記録中に想定していないエラーが起きました', body:'詳しい内容はGitHubのActionsの画面で確認できます。', steps:[]}
   };
   function box(cls, ico, title, body, steps, withGuide){
     return '<div class="alert '+cls+'" role="status"><span class="ico" aria-hidden="true">'+ico+'</span><div><strong>'+esc(title)+'</strong>'+esc(body)
       + (steps && steps.length ? '<ol>'+steps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol>' : '')
-      + (withGuide ? '<div class="acts"><a href="'+esc(GUIDE)+'" target="_blank" rel="noopener">詳しい直し方を見る</a><a href="'+esc(ACTIONS)+'" target="_blank" rel="noopener">実行の記録（Actions）</a></div>' : '')
+      + (withGuide ? '<div class="acts"><button type="button" data-guide="'+esc(withGuide)+'">📘 詳しい直し方を見る</button><a href="'+esc(ACTIONS)+'" target="_blank" rel="noopener">実行の記録（GitHub）</a></div>' : '')
       + '</div></div>';
   }
   var stale = ST.lastSuccess && NOW - ST.lastSuccess > 3*3600000;
   if (ST.state === 'error') {
     var f = FIX[ST.code] || FIX.unknown;
-    notice += box(f.cls, '⚠️', f.title, f.body + (ST.at ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, true);
+    notice += box(f.cls, '⚠️', f.title, f.body + (ST.at ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, f.key);
     $('stNext').textContent = '直すまで記録が止まります'; $('stNext').classList.add('bad');
   } else if (ST.state === 'temporary' && stale) {
-    notice += box('warn', '⏳', 'Spotifyに接続できない状態が続いています', 'Spotify側の一時的な不具合のことが多く、ふつうは自動で直ります。1日以上続く場合は、詳しい直し方を確認してください。', [], true);
+    notice += box('warn', '⏳', 'Spotifyに接続できない状態が続いています', 'Spotify側の一時的な不具合のことが多く、ふつうは自動で直ります。1日以上続く場合は、詳しい直し方を確認してください。', [], 'D');
   } else if (stale) {
-    notice += box('warn', '⏸️', '自動の確認が止まっているようです', '最後に確認できたのは ' + stamp(ST.lastSuccess) + ' です。GitHubの自動実行が止まっている可能性があります。', ['「実行の記録（Actions）」を開く','黄色い帯に「Enable workflow」ボタンがあれば押す','「Run workflow」を押して、緑のチェックになるか確認'], true);
+    notice += box('warn', '⏸️', '自動の確認が止まっているようです', '最後に確認できたのは ' + stamp(ST.lastSuccess) + ' です。GitHubの自動実行が止まっている可能性があります。', ['「実行の記録（Actions）」を開く','黄色い帯に「Enable workflow」ボタンがあれば押す','「Run workflow」を押して、緑のチェックになるか確認'], 'E');
   }
   if (!stale && ST.state !== 'error') $('stNext').textContent = '1時間以内';
   if (stale) { $('stChecked').classList.remove('live'); $('stNext').textContent = '止まっています'; $('stNext').classList.add('bad'); }
@@ -828,10 +929,41 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
       $('stExpire').classList.add('bad');
       notice += box('info', '🔑', 'Spotifyとの連携の期限が近づいています',
         (left > 0 ? 'あと' + left + '日ほどで' : 'まもなく') + '連携が切れます。切れる前に次の手順で更新しておくと、記録が途切れません。',
-        FIX.token_expired.steps, true);
+        FIX.token_expired.steps, 'A');
     }
   }
   $('notice').innerHTML = notice;
+  $('actionsLink').href = ACTIONS;
+  var DL = RAW.downloads || {};
+  if (DL.rows != null) $('dlCsvNote').textContent = 'これまでの全再生（' + fmt(DL.rows) + '件）。Excelで開けます';
+  if (!DL.zip) { $('dlZip').style.display = 'none'; $('dlCsv').style.display = 'none'; }
+
+  /* ---------------- 説明書（READMEをページ内で表示） ---------------- */
+  var GA = RAW.guideAnchors || {}, lastFocus = null;
+  $('guide').innerHTML = RAW.guideHtml || '<p>説明書がまだ読み込まれていません。GitHubのリポジトリのトップページ（README）をご覧ください。</p><p><a href="'+esc(GUIDE)+'" target="_blank" rel="noopener">GitHubで開く</a></p>';
+  function jumpTo(id){
+    var el = id && document.getElementById(id);
+    if (!el) { $('guideBody').scrollTop = 0; return; }
+    $('guideBody').scrollTop = el.offsetTop - 6;
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  }
+  function openGuide(key){
+    lastFocus = document.activeElement;
+    $('guideModal').classList.add('open'); document.body.classList.add('modal-lock');
+    requestAnimationFrame(function(){ jumpTo(key === 'top' ? null : GA[key]); $('guideClose').focus(); });
+  }
+  function closeGuide(){
+    $('guideModal').classList.remove('open'); document.body.classList.remove('modal-lock');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-guide]'); if (b) { openGuide(b.dataset.guide); return; }
+    var a = e.target.closest('#guide a[data-jump]');
+    if (a) { e.preventDefault(); jumpTo(decodeURIComponent(a.getAttribute('href').slice(1))); }
+  });
+  $('guideClose').addEventListener('click', closeGuide);
+  $('guideModal').addEventListener('click', function(e){ if (e.target === $('guideModal')) closeGuide(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && $('guideModal').classList.contains('open')) closeGuide(); });
   render();
 })();
 </script>
