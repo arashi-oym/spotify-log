@@ -492,6 +492,23 @@ body.modal-lock{overflow:hidden;}
 .dl-text small{font-size:11px;color:var(--text-sub);line-height:1.5;}
 .dl-item::after{content:'⬇';margin-left:auto;color:var(--corp-ink);font-weight:700;flex:none;}
 
+/* アコーディオン（説明書・ダウンロード） */
+.acc{margin-top:16px;border:1px solid var(--corp-border);border-radius:12px;background:var(--surface-strong);overflow:hidden;}
+.acc > summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:9px;
+  padding:11px 14px;font-size:13px;font-weight:700;color:var(--dark);min-height:44px;
+  transition:background .18s;
+}
+.acc > summary::-webkit-details-marker{display:none;}
+.acc > summary::before{content:'▸';color:var(--corp-ink);font-size:12px;transition:transform .2s var(--ease-expo);}
+.acc[open] > summary::before{transform:rotate(90deg);}
+.acc > summary:hover{background:var(--corp-pale);}
+.acc > summary::after{content:'開く';margin-left:auto;font-size:11px;font-weight:600;color:var(--text-faint);}
+.acc[open] > summary::after{content:'閉じる';}
+.acc-body{padding:2px 14px 14px;border-top:1px solid var(--line);}
+.acc-body .status-actions{margin-top:12px;}
+.acc-body .dl-box{margin-top:14px;padding-top:12px;}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
@@ -605,21 +622,26 @@ body.modal-lock{overflow:hidden;}
             <dt>次の確認</dt><dd id="stNext">―</dd>
             <dt>連携の期限</dt><dd id="stExpire">―</dd>
           </dl>
-          <div class="status-actions">
-            <button type="button" class="btn-sub" data-guide="top">📘 使い方・直し方を見る</button>
-            <a class="text-link" id="actionsLink" href="#" target="_blank" rel="noopener">実行の記録（GitHub）</a>
-          </div>
-          <div class="dl-box">
-            <div class="dl-title">ダウンロード</div>
-            <a class="dl-item" id="dlZip" href="downloads/spotify-log.zip" download="spotify-log.zip">
-              <span class="dl-ico" aria-hidden="true">🗂</span>
-              <span class="dl-text"><b>ファイル一式（zip）</b><small>再認証.command・説明書・プログラム。Macのフォルダをなくしたときに</small></span>
-            </a>
-            <a class="dl-item" id="dlCsv" href="downloads/plays.csv" download="spotify-plays.csv">
-              <span class="dl-ico" aria-hidden="true">📄</span>
-              <span class="dl-text"><b>再生記録（CSV）</b><small id="dlCsvNote">これまでの全再生。Excelで開けます</small></span>
-            </a>
-          </div>
+          <details class="acc" id="supportAcc">
+            <summary>説明書・ダウンロード</summary>
+            <div class="acc-body">
+              <div class="status-actions">
+                <button type="button" class="btn-sub" data-guide="top">📘 使い方・直し方を見る</button>
+                <a class="text-link" id="actionsLink" href="#" target="_blank" rel="noopener">実行の記録（GitHub）</a>
+              </div>
+              <div class="dl-box">
+                <div class="dl-title">ダウンロード</div>
+                <a class="dl-item" id="dlZip" href="downloads/spotify-log.zip" download="spotify-log.zip">
+                  <span class="dl-ico" aria-hidden="true">🗂</span>
+                  <span class="dl-text"><b>ファイル一式（zip）</b><small>再認証.command・説明書・プログラム。Macのフォルダをなくしたときに</small></span>
+                </a>
+                <a class="dl-item" id="dlCsv" href="downloads/plays.csv" download="spotify-plays.csv">
+                  <span class="dl-ico" aria-hidden="true">📄</span>
+                  <span class="dl-text"><b>再生記録（CSV）</b><small id="dlCsvNote">これまでの全再生。Excelで開けます</small></span>
+                </a>
+              </div>
+            </div>
+          </details>
           <p class="hint">Spotifyの再生履歴を1時間ごとに確認して記録しています。連携の期限は約半年ごとに来るので、近づいたらこのページでお知らせします。プライベートセッション中の再生と30秒未満の再生は記録されません。</p>
         </div>
       </section>
