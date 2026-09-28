@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,6 +22,10 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data" / "plays.csv"
 ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
+HISTORY_PATH = ROOT / "data" / "history.csv"   # Spotifyから取り寄せた過去の履歴（あれば）
+TRACKS_PATH = ROOT / "data" / "tracks.json"    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
+HISTORY_LOOKUP_LIMIT = 300                      # 過去の履歴の曲情報を1回に調べる最大件数
+ARTIST_LOOKUP_LIMIT = 150
 FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
 API = "https://api.spotify.com/v1"
 LOOKUP_LIMIT = 40  # 1回の実行で補完する最大件数（曲・アーティストそれぞれ）
@@ -130,6 +135,53 @@ def save_rows(rows):
         w.writerows(rows)
 
 
+def enrich_history(token):
+    """過去の履歴（history.csv）の曲について、ジャケ写・参加アーティスト・曲の長さを少しずつ調べて tracks.json に保存する。
+    よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
+    if not HISTORY_PATH.exists():
+        return 0
+    cache = {}
+    if TRACKS_PATH.exists():
+        try:
+            cache = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
+        except ValueError:
+            cache = {}
+    counts = {}
+    with HISTORY_PATH.open(newline="", encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            tid = r.get("track_id") or ""
+            if SPOTIFY_ID.match(tid) and tid not in cache:
+                counts[tid] = counts.get(tid, 0) + 1
+    todo = sorted(counts, key=lambda k: -counts[k])[:HISTORY_LOOKUP_LIMIT]
+    done = 0
+    for tid in todo:
+        try:
+            t = api_get(token, f"/tracks/{tid}")
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 404):
+                cache[tid] = {}          # Spotifyから消えた曲など。次回からは調べない
+                continue
+            print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e.code}")
+            break
+        except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
+            print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e}")
+            break
+        image, artist_ids = track_extras(t)
+        cache[tid] = {
+            "image": image,
+            "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
+            "artist_ids": artist_ids,
+            "duration_ms": t.get("duration_ms", 0),
+        }
+        done += 1
+        time.sleep(0.05)
+    if done or todo:
+        TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
+    left = max(0, len(counts) - len(todo))
+    print(f"過去の履歴：曲情報 {done}件を取得（残り 約{left:,}曲）")
+    return done
+
+
 def sync():
     token = get_access_token()
     try:
@@ -187,13 +239,19 @@ def sync():
     for tid in missing[:LOOKUP_LIMIT]:
         try:
             t = api_get(token, f"/tracks/{tid}")
-        except (urllib.error.HTTPError, urllib.error.URLError, socket.timeout, TimeoutError) as e:
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 404):
+                continue
+            print(f"曲情報の補完を中断しました（次回また試します）: {e.code}")
+            break
+        except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
             print(f"曲情報の補完を中断しました（次回また試します）: {e}")
             break
         fill(tid, *track_extras(t))
         looked += 1
 
     save_rows(rows)
+    enrich_history(token)
 
     # --- アーティスト画像 ---
     cache = {}
@@ -204,15 +262,33 @@ def sync():
         for aid in r["artist_ids"].split(" / "):
             if SPOTIFY_ID.match(aid) and aid not in cache and aid not in need:
                 need.append(aid)
+    if TRACKS_PATH.exists():
+        try:
+            tracks = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
+        except ValueError:
+            tracks = {}
+        seen_need = set(need)
+        for info in tracks.values():
+            for aid in (info.get("artist_ids") or "").split(" / "):
+                if SPOTIFY_ID.match(aid) and aid not in cache and aid not in seen_need:
+                    seen_need.add(aid)
+                    need.append(aid)
     got = 0
-    for aid in need[:LOOKUP_LIMIT]:
+    for aid in need[:ARTIST_LOOKUP_LIMIT]:
         try:
             a = api_get(token, f"/artists/{aid}")
-        except (urllib.error.HTTPError, urllib.error.URLError, socket.timeout, TimeoutError) as e:
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 404):
+                cache[aid] = {"name": "", "image": ""}
+                continue
+            print(f"アーティスト画像の取得を中断しました（次回また試します）: {e.code}")
+            break
+        except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
             print(f"アーティスト画像の取得を中断しました（次回また試します）: {e}")
             break
         cache[aid] = {"name": a.get("name", ""), "image": pick_image(a)}
         got += 1
+        time.sleep(0.05)
     if cache:
         ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 

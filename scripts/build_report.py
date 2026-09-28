@@ -9,13 +9,16 @@ import json
 import os
 import re
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+JST = timezone(timedelta(hours=9))
 CSV_PATH = ROOT / "data" / "plays.csv"
 ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
+HISTORY_PATH = ROOT / "data" / "history.csv"
+TRACKS_PATH = ROOT / "data" / "tracks.json"
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
@@ -43,11 +46,11 @@ def read_json(path):
     return {}
 
 
-def load_rows():
+def read_csv(path, source):
     rows = []
-    if not CSV_PATH.exists():
+    if not path.exists():
         return rows
-    with CSV_PATH.open(newline="", encoding="utf-8-sig") as f:
+    with path.open(newline="", encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
             try:
                 dt = datetime.strptime(r["played_at"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
@@ -56,9 +59,31 @@ def load_rows():
             rows.append({
                 "dt": dt, "track_id": r.get("track_id") or r.get("track") or "",
                 "track": r.get("track") or "", "artists": r.get("artists") or "",
+                "album": r.get("album") or "",
                 "image": r.get("image") or "", "artist_ids": r.get("artist_ids") or "",
-                "ms": int(r.get("duration_ms") or 0),
+                "ms": int(float(r.get("duration_ms") or 0)), "src": source,
             })
+    return rows
+
+
+def load_rows():
+    """いまの記録（plays.csv）と、取り寄せた過去の履歴（history.csv）を合わせる。
+    重なる期間は二重に数えないよう、過去の履歴は「いまの記録の最初の再生」より前の分だけを使う。"""
+    live = read_csv(CSV_PATH, "live")
+    hist = read_csv(HISTORY_PATH, "history")
+    if live and hist:
+        start = min(r["dt"] for r in live)
+        hist = [r for r in hist if r["dt"] < start]
+    tracks = read_json(TRACKS_PATH)
+    for r in hist + live:
+        info = tracks.get(r["track_id"]) or {}
+        if info.get("artists") and r["src"] == "history":
+            r["artists"] = info["artists"]          # 参加アーティストまで含めた名前に置き換え
+        r["image"] = r["image"] or info.get("image", "")
+        r["artist_ids"] = r["artist_ids"] or info.get("artist_ids", "")
+        if info.get("duration_ms"):
+            r["ms"] = int(info["duration_ms"])
+    rows = hist + live
     rows.sort(key=lambda x: x["dt"])
     return rows
 
@@ -76,6 +101,13 @@ def artist_images(rows):
             if img:
                 out[name] = img
     return out
+
+
+IMG_PREFIX = "https://i.scdn.co/image/"
+
+
+def short_img(url):
+    return "~" + url[len(IMG_PREFIX):] if url.startswith(IMG_PREFIX) else url
 
 
 def to_ms(iso):
@@ -228,10 +260,10 @@ def add_file(z, arcname, data, executable=False):
     z.writestr(info, data)
 
 
-def build_downloads():
+def build_downloads(rows):
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     files = [("README.md", README)]
-    for name in ("fetch.py", "build_report.py", "auth.py", "template.html"):
+    for name in ("fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html"):
         files.append((f"scripts/{name}", Path(__file__).resolve().parent / name))
     files.append(("workflow/spotify.yml", WORKFLOW))
     with zipfile.ZipFile(DOWNLOADS / "spotify-log.zip", "w") as z:
@@ -240,31 +272,44 @@ def build_downloads():
                 add_file(z, f"spotify-log/{arc}", path.read_bytes())
         add_file(z, "spotify-log/再認証.command", COMMAND.encode("utf-8"), executable=True)
 
-    # 再生記録：Excelで文字化けしないよう BOM付きUTF-8 で出力
-    if CSV_PATH.exists():
-        text = CSV_PATH.read_text(encoding="utf-8-sig")
-        (DOWNLOADS / "plays.csv").write_text(text, encoding="utf-8-sig")
+    # 再生記録（過去の履歴も含む全件）：Excelで文字化けしないよう BOM付きUTF-8、日時は日本時間
+    with (DOWNLOADS / "plays.csv").open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["再生日時（日本時間）", "曲名", "アーティスト", "アルバム", "曲の長さ（秒）", "記録元"])
+        for r in rows:
+            w.writerow([r["dt"].astimezone(JST).strftime("%Y-%m-%d %H:%M:%S"), r["track"], r["artists"], r["album"],
+                        round(r["ms"] / 1000), "自動記録" if r["src"] == "live" else "取り寄せた履歴"])
 
 
 def main():
     rows = load_rows()
-    songs, index, plays = [], {}, []
+    songs, index, plays, prev = [], {}, [], 0
     for r in rows:
-        k = r["track_id"]
+        # 同じ曲がシングルとアルバムなどで別の番号になっていることがあるので、
+        # 「曲名＋メインのアーティスト」が同じなら同じ曲としてまとめる
+        k = (r["track"].strip().lower(), r["artists"].split(" / ")[0].strip().lower()) if r["track"] else r["track_id"]
+        # 曲名・アーティストは新しい記録のもので上書き（名前が変わった曲に対応）
         if k not in index:
             index[k] = len(songs)
-            songs.append([r["track"], r["artists"], r["image"], round(r["ms"] / 60000, 2)])
-        elif r["image"] and not songs[index[k]][2]:
-            songs[index[k]][2] = r["image"]
-        plays.append([int(r["dt"].timestamp()), index[k]])
+            songs.append([r["track"], r["artists"], short_img(r["image"]), round(r["ms"] / 60000, 2)])
+        else:
+            sg = songs[index[k]]
+            if r["src"] == "live":
+                sg[0], sg[1] = r["track"] or sg[0], r["artists"] or sg[1]
+            if r["image"] and not sg[2]:
+                sg[2] = short_img(r["image"])
+        t = int(r["dt"].timestamp())
+        plays += [t - prev, index[k]]     # 容量を減らすため、前の再生からの秒数で保存
+        prev = t
 
     st = read_json(STATUS_PATH)
     guide_html, guide_anchors = guide()
     repo = os.environ.get("GITHUB_REPOSITORY", "arashi-oym/spotify-log")
     data = {
         "songs": songs,
-        "plays": plays,
-        "artistImages": artist_images(rows),
+        "p": plays,
+        "imgPrefix": IMG_PREFIX,
+        "artistImages": {k: short_img(v) for k, v in artist_images(rows).items()},
         "status": {
             "state": st.get("state", "ok"),
             "code": st.get("code", ""),
@@ -277,15 +322,15 @@ def main():
         "guideHtml": guide_html,
         "guideAnchors": guide_anchors,
         "actions": f"https://github.com/{repo}/actions",
-        "downloads": {"zip": "downloads/spotify-log.zip", "csv": "downloads/plays.csv", "rows": len(plays)},
+        "downloads": {"zip": "downloads/spotify-log.zip", "csv": "downloads/plays.csv", "rows": len(rows)},
     }
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     DOCS.mkdir(exist_ok=True)
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")
     html = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
     (DOCS / "index.html").write_text(html, encoding="utf-8")
-    build_downloads()
-    print(f"docs/index.html を更新しました（再生 {len(plays):,}件 / 曲 {len(songs):,}曲）")
+    build_downloads(rows)
+    print(f"docs/index.html を更新しました（再生 {len(rows):,}件 / 曲 {len(songs):,}曲）")
 
 
 if __name__ == "__main__":

@@ -671,13 +671,16 @@ body.modal-lock{overflow:hidden;}
   /* ============================================================
      データ（GitHub Actions が1時間ごとに埋め込む）
      songs: [曲名, アーティスト, ジャケ写URL, 曲の長さ(分)]
-     plays: [再生日時(秒), 曲番号]
+     p: [前の再生からの秒数, 曲番号, …]（容量を減らすための形）
   ============================================================ */
   var RAW = JSON.parse(document.getElementById('data').textContent || '{}');
-  var SONGS = (RAW.songs || []).map(function(x){ return {t:x[0], a:x[1], img:x[2]||'', min:x[3]||0}; });
-  var PLAYS = (RAW.plays || []).map(function(x){ return [x[0]*1000, x[1]]; });
-  PLAYS.sort(function(a,b){return a[0]-b[0];});
-  var ARTIST_IMG = RAW.artistImages || {};
+  var PFX = RAW.imgPrefix || '';
+  function fullImg(u){ return u && u.charAt(0) === '~' ? PFX + u.slice(1) : (u || ''); }
+  var SONGS = (RAW.songs || []).map(function(x){ return {t:x[0], a:x[1], img:fullImg(x[2]), min:x[3]||0}; });
+  // p: [前の再生からの秒数, 曲番号, …] を [再生日時(ミリ秒), 曲番号] に戻す
+  var PLAYS = [], P = RAW.p || [], tacc = 0;
+  for (var pi = 0; pi + 1 < P.length; pi += 2) { tacc += P[pi]; PLAYS.push([tacc*1000, P[pi+1]]); }
+  var ARTIST_IMG = {}; Object.keys(RAW.artistImages || {}).forEach(function(k){ ARTIST_IMG[k] = fullImg(RAW.artistImages[k]); });
   var DAY = 86400000;
   var NOW = Date.now();
   var LAST_PLAY = PLAYS.length ? PLAYS[PLAYS.length-1][0] : null;
@@ -784,13 +787,15 @@ body.modal-lock{overflow:hidden;}
   /* ============================================================
      期間を選ぶパネル
   ============================================================ */
-  var years = []; for (var y = firstJ.y; y <= nowJ.y; y++) years.push(y);
+  function countIn(r){ return lowerBound(r.to) - lowerBound(r.from); }
+  var years = []; for (var y = firstJ.y; y <= nowJ.y; y++) if (countIn(yearRange(y)) > 0) years.push(y);
+  if (!years.length) years.push(nowJ.y);
   $('selYear').innerHTML = years.slice().reverse().map(function(y){return '<option value="'+y+'">'+y+'年</option>';}).join('');
   function fillMonths(){
     var y = +$('selYear').value, h = '';
     for (var m = 1; m <= 12; m++) {
       var r = monthRange(y,m);
-      if (r.to <= FIRST || r.from > NOW) continue;
+      if (r.to <= FIRST || r.from > NOW || (PLAYS.length && countIn(r) === 0)) continue;
       h += '<option value="'+m+'">'+m+'月</option>';
     }
     $('selMonth').innerHTML = h;
