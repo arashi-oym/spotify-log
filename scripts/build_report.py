@@ -14,6 +14,7 @@ from pathlib import Path
 JST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data" / "plays.csv"
+ARTISTS_PATH = ROOT / "data" / "artists.json"
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
 
@@ -30,6 +31,7 @@ def load():
             r["dt"] = dt.replace(tzinfo=timezone.utc).astimezone(JST)
             r["ms"] = int(r.get("duration_ms") or 0)
             r["image"] = r.get("image") or ""
+            r["artist_ids"] = r.get("artist_ids") or ""
             rows.append(r)
     return rows
 
@@ -49,6 +51,28 @@ def rank_songs(rows, n):
     } for k in ranked]
 
 
+ARTIST_IMG = {}
+
+
+def build_artist_images(rows):
+    """アーティスト名 → アーティスト写真URL"""
+    cache = {}
+    if ARTISTS_PATH.exists():
+        try:
+            cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
+        except ValueError:
+            cache = {}
+    for r in rows:
+        names = r["artists"].split(" / ")
+        ids = r["artist_ids"].split(" / ") if r["artist_ids"] else []
+        if len(names) != len(ids):
+            continue
+        for name, aid in zip(names, ids):
+            img = (cache.get(aid) or {}).get("image")
+            if img:
+                ARTIST_IMG[name] = img
+
+
 def rank_artists(rows, n):
     counts, ms = Counter(), defaultdict(int)
     track_counts = defaultdict(Counter)
@@ -65,8 +89,8 @@ def rank_artists(rows, n):
     ranked = sorted(counts, key=lambda a: (-counts[a], -ms[a]))[:n]
     out = []
     for a in ranked:
-        img = ""
-        for tid, _ in track_counts[a].most_common():
+        img = ARTIST_IMG.get(a, "")
+        for tid, _ in ([] if img else track_counts[a].most_common()):
             if (a, tid) in images:
                 img = images[(a, tid)]
                 break
@@ -332,6 +356,7 @@ def page_url():
 
 def main():
     rows = load()
+    build_artist_images(rows)
     data = None
     if rows:
         now = datetime.now(JST)
