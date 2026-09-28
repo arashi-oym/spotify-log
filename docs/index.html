@@ -1,157 +1,773 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Listening Log">
-<meta name="robots" content="noindex">
+<meta name="format-detection" content="telephone=no">
 <title>My Listening Log</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+/* ============================================================
+   DESIGN TOKENS — Spotify グリーン
+   ブランド #1DB954 / 明るい緑 #1ED760 / 深緑 #0B5C2C
+   文字に使う緑は読みやすさのため深め（--corp-ink）にしている
+============================================================ */
 :root{
-  --bg:#f5f3ef;--card:#ffffff;--text:#17171a;--sub:#6e6e76;--line:#e7e4de;
-  --accent:#16a34a;--accent-soft:rgba(22,163,74,.14);--chip:#ebe8e2;
+  --font-display:'Outfit','Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;
+  --font-body:'Noto Sans JP','Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+
+  --corp:#1DB954; --corp-light:#1ED760; --corp-deep:#0B5C2C; --corp-ink:#0F7A3A;
+  --on-corp:#07190E;
+  --corp-pale:rgba(29,185,84,0.10); --corp-border:rgba(29,185,84,0.22);
+  --corp-tint:rgba(29,185,84,0.05);
+
+  --bg:#f1f2ee; --surface:rgba(255,255,255,0.72); --surface-strong:rgba(255,255,255,0.9);
+  --text:#1d1d1f; --text-sub:#65686b; --text-faint:#8f9396; --dark:#15201a;
+  --bar-bg:rgba(243,244,240,0.82); --line:rgba(29,185,84,0.16);
+
+  --blob1:rgba(29,185,84,0.16); --blob2:rgba(255,214,170,0.20); --blob3:rgba(170,215,240,0.18); --blob4:rgba(30,215,96,0.07);
+  --base-grad:linear-gradient(175deg,#f4f5f1 0%,#eaece6 40%,#eff1ec 100%);
+  --noise-opacity:.28;
+
+  --glass-blur:20px;
+  --glass-shadow:0 8px 32px rgba(0,0,0,0.06);
+  --radius-sm:12px; --radius-md:20px; --radius-lg:28px;
+  --ease-expo:cubic-bezier(0.16,1,0.3,1);
+  --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
   color-scheme:light;
+
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0e0e10;--card:#18181b;--text:#f4f4f5;--sub:#9d9da6;--line:#27272a;
-  --accent:#1ed760;--accent-soft:rgba(30,215,96,.16);--chip:#232327;
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --corp-ink:#3BE07A; --on-corp:#04130A;
+    --corp-pale:rgba(30,215,96,0.13); --corp-border:rgba(30,215,96,0.20); --corp-tint:rgba(30,215,96,0.06);
+    --bg:#0d120f; --surface:rgba(26,32,28,0.72); --surface-strong:rgba(32,40,35,0.92);
+    --text:#eef2ef; --text-sub:#a3aca6; --text-faint:#7d8781; --dark:#f3f7f4;
+    --bar-bg:rgba(13,18,15,0.80); --line:rgba(30,215,96,0.14);
+    --blob1:rgba(29,185,84,0.20); --blob2:rgba(30,215,96,0.06); --blob3:rgba(60,110,160,0.14); --blob4:rgba(29,185,84,0.08);
+    --base-grad:linear-gradient(175deg,#0f1511 0%,#0b100d 50%,#0e1310 100%);
+    --noise-opacity:.10;
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.35);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --corp-ink:#3BE07A; --on-corp:#04130A;
+  --corp-pale:rgba(30,215,96,0.13); --corp-border:rgba(30,215,96,0.20); --corp-tint:rgba(30,215,96,0.06);
+  --bg:#0d120f; --surface:rgba(26,32,28,0.72); --surface-strong:rgba(32,40,35,0.92);
+  --text:#eef2ef; --text-sub:#a3aca6; --text-faint:#7d8781; --dark:#f3f7f4;
+  --bar-bg:rgba(13,18,15,0.80); --line:rgba(30,215,96,0.14);
+  --blob1:rgba(29,185,84,0.20); --blob2:rgba(30,215,96,0.06); --blob3:rgba(60,110,160,0.14); --blob4:rgba(29,185,84,0.08);
+  --base-grad:linear-gradient(175deg,#0f1511 0%,#0b100d 50%,#0e1310 100%);
+  --noise-opacity:.10;
+  --glass-shadow:0 8px 32px rgba(0,0,0,0.35);
   color-scheme:dark;
-}}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg)}
-body{
-  color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-  -webkit-font-smoothing:antialiased;line-height:1.4;
-  padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);
 }
-.wrap{max-width:640px;margin:0 auto}
-header h1{font-size:28px;font-weight:800;letter-spacing:-.02em}
-header p{color:var(--sub);font-size:13px;margin-top:4px}
-.tabs{display:flex;gap:8px;overflow-x:auto;margin:20px -16px 0;padding:0 16px 4px;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{flex:0 0 auto;border:0;background:var(--chip);color:var(--text);font:inherit;font-size:14px;font-weight:600;
-  padding:8px 16px;border-radius:999px;cursor:pointer}
-.tab.on{background:var(--text);color:var(--bg)}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-.stat{background:var(--card);border-radius:16px;padding:14px 16px}
-.stat b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em}
-.stat span{color:var(--sub);font-size:12px}
-.hero{display:flex;gap:16px;align-items:center;background:var(--card);border-radius:20px;padding:16px;margin-top:10px}
-.hero .art{width:104px;height:104px;border-radius:12px;font-size:36px}
-.hero .no1{color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.08em}
-.hero .name{font-size:20px;font-weight:800;margin-top:2px;word-break:break-word}
-.hero .by{color:var(--sub);font-size:14px;margin-top:2px}
-.hero .cnt{font-size:13px;margin-top:8px;font-weight:600}
-.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--chip);border-radius:12px;padding:3px;margin-top:20px}
-.seg button{border:0;background:transparent;color:var(--sub);font:inherit;font-size:14px;font-weight:700;padding:9px;border-radius:9px;cursor:pointer}
-.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.list{margin-top:12px;background:var(--card);border-radius:20px;padding:6px 0;overflow:hidden}
-.row{display:flex;align-items:center;gap:12px;padding:9px 14px;position:relative}
-.row+.row{border-top:1px solid var(--line)}
-.rank{width:24px;text-align:right;font-weight:800;font-size:15px;color:var(--sub);flex:0 0 auto}
-.row:nth-child(-n+3) .rank{color:var(--accent)}
-.art{width:46px;height:46px;border-radius:8px;flex:0 0 auto;object-fit:cover;background:var(--chip);
-  display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:18px;overflow:hidden}
-.art.round{border-radius:50%}
-.meta{flex:1;min-width:0}
-.meta .t{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.meta .a{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar{height:3px;border-radius:2px;background:var(--accent-soft);margin-top:6px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
-.num{text-align:right;flex:0 0 auto}
-.num b{display:block;font-size:15px;font-weight:800}
-.num span{font-size:11px;color:var(--sub)}
-h2{font-size:18px;font-weight:800;margin-top:28px}
-.empty{color:var(--sub);text-align:center;padding:40px 16px;font-size:14px}
-footer{color:var(--sub);font-size:11px;text-align:center;margin-top:28px}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-text-size-adjust:100%;
+  scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg);}
+body{font-family:var(--font-body);color:var(--text);line-height:1.7;min-height:100vh;overflow-x:hidden;font-size:14px;background:var(--bg);}
+body::before{
+  content:'';position:fixed;inset:0;z-index:-2;
+  background:
+    radial-gradient(ellipse 80% 60% at 8% 18%, var(--blob1) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 12%, var(--blob2) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 55% at 50% 82%, var(--blob3) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 35% at 72% 58%, var(--blob4) 0%, transparent 50%),
+    var(--base-grad);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:-1;opacity:var(--noise-opacity);pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px;
+}
+.dnum{font-family:var(--font-display);font-variant-numeric:tabular-nums;}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--corp);outline-offset:2px;}
+
+/* ============================================================
+   CONTROL BAR（ガラス調）
+============================================================ */
+#ui{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:200;
+  background:var(--bar-bg);
+  backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid var(--corp-border);
+  box-shadow:0 2px 12px rgba(0,0,0,.05);
+}
+#topbar{display:flex;align-items:center;gap:10px;padding:9px 16px;max-width:1420px;margin:0 auto;}
+.bar-logo{display:flex;align-items:center;gap:8px;min-width:0;}
+.logo-mark{
+  width:22px;height:22px;border-radius:6px;flex:none;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--corp-light) 0%,var(--corp-deep) 100%);
+  box-shadow:0 2px 6px rgba(29,185,84,.35);
+}
+/* ロゴマークの中の小さなイコライザー */
+.logo-mark i{position:absolute;bottom:5px;width:2.5px;border-radius:2px;background:rgba(255,255,255,.92);}
+.logo-mark i:nth-child(1){left:5px;height:6px;}
+.logo-mark i:nth-child(2){left:9.75px;height:11px;}
+.logo-mark i:nth-child(3){left:14.5px;height:8px;}
+.logo-text{font-family:var(--font-display);font-size:.98rem;font-weight:700;letter-spacing:-.01em;color:var(--dark);white-space:nowrap;}
+.scope-tag{font-size:10px;font-weight:700;color:var(--corp-ink);background:var(--corp-pale);border:1px solid var(--corp-border);border-radius:980px;padding:2px 9px;white-space:nowrap;}
+.tb-spacer{flex:1 1 auto;}
+
+.seg{display:inline-flex;background:var(--corp-pale);border-radius:980px;padding:3px;gap:2px;max-width:100%;}
+.seg button{
+  border:0;background:transparent;font-size:12.5px;font-weight:600;color:var(--text-sub);
+  padding:7px 16px;border-radius:980px;cursor:pointer;white-space:nowrap;flex:none;
+  transition:background .2s,color .2s;
+}
+.seg button:hover{color:var(--dark);}
+.seg button.on{background:var(--corp);color:var(--on-corp);font-weight:700;box-shadow:0 2px 8px rgba(29,185,84,.30);}
+.seg.seg-mini{padding:2px;}
+.seg.seg-mini button{padding:5px 13px;font-size:11.5px;}
+
+/* スマホ：期間の切り替えはバーの2段目で横スクロール */
+#periodRow{display:none;}
+.ls{display:none;}
+@media (max-width:860px){
+  #topbar{padding:8px 12px;}
+  #topbar .seg,.scope-tag{display:none;}
+  /* 期間ボタンはすべて見えるように並べる（横6つ → 狭いときは3つ×2段） */
+  #periodRow{display:block;padding:0 12px 10px;}
+  #periodRow .seg{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));width:100%;max-width:none;border-radius:14px;}
+  #periodRow .seg button{border-radius:11px;padding:8px 4px;text-align:center;justify-content:center;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  #periodRow .seg button.pick::after{flex:none;}
+}
+@media (max-width:560px){
+  #periodRow .seg{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:3px;}
+  .lf{display:none;} .ls{display:inline;}
+}
+@media (max-width:360px){
+  #periodRow .seg button{font-size:12px;padding:8px 2px;}
+  .logo-text{font-size:.9rem;}
+}
+
+
+/* ============================================================
+   LAYOUT
+============================================================ */
+.page{max-width:1420px;margin:0 auto;padding:24px 16px 40px;}
+@media (max-width:420px){.page{padding:14px 10px 30px;}.foot{padding:0 12px 30px;}}
+.grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:18px;align-items:start;}
+.side-col{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);}
+/* スマホ・タブレット：サマリー → ランキング → 月ごと → 記録の状態 の順に並べ替える */
+@media (max-width:1100px){
+  .grid{display:flex;flex-direction:column;align-items:stretch;gap:0;}
+  .main-col,.side-col{display:contents;}
+  #summaryCard{order:1;} #rankCard{order:2;} #monthlyCard{order:3;} #statusCard{order:4;}
+}
+
+.card{
+  background:var(--surface);
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  border:1px solid rgba(255,255,255,0.55);
+  border-radius:var(--radius-md);box-shadow:var(--glass-shadow);
+  margin-bottom:16px;overflow:hidden;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .card{border-color:rgba(255,255,255,.06);}}
+:root[data-theme="dark"] .card{border-color:rgba(255,255,255,.06);}
+.card-head{
+  padding:12px 20px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.card-head .ico{
+  width:22px;height:22px;border-radius:7px;flex:none;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--corp);color:var(--on-corp);font-size:11px;font-weight:800;
+}
+.card-head h2{font-size:14.5px;font-weight:700;color:var(--dark);letter-spacing:.01em;}
+.card-head .eyebrow{font-family:var(--font-display);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--corp-ink);opacity:.75;}
+.card-head .push{margin-left:auto;}
+.card-body{padding:18px 20px;}
+
+/* ============================================================
+   SUMMARY（右列）
+============================================================ */
+.total-box{
+  border-radius:16px;padding:18px 20px;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#1DB954 0%,#138A43 42%,#0B5C2C 100%);
+  box-shadow:0 8px 26px rgba(29,185,84,.28);
+}
+/* 合計ボックスの右側に、背景として淡い波形を描く */
+.total-box .wave{position:absolute;right:-6px;bottom:0;height:78%;opacity:.22;display:flex;align-items:flex-end;gap:5px;pointer-events:none;}
+.total-box .wave i{width:7px;border-radius:4px 4px 0 0;background:#fff;}
+.total-box .k{font-size:11.5px;font-weight:600;letter-spacing:.06em;color:rgba(255,255,255,.88);}
+.total-box .v{font-family:var(--font-display);font-size:46px;font-weight:700;line-height:1.1;letter-spacing:-.03em;margin-top:2px;}
+.total-box .v small{font-size:18px;margin-left:4px;font-weight:600;font-family:var(--font-body);}
+.total-box .m{font-size:12px;color:rgba(255,255,255,.88);margin-top:6px;}
+
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px;}
+.stat{background:var(--surface-strong);border:1px solid var(--corp-border);border-radius:12px;padding:9px 13px;}
+.stat .k{font-size:11px;font-weight:700;color:var(--text-faint);white-space:nowrap;}
+.stat .v{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--dark);line-height:1.35;font-variant-numeric:tabular-nums;}
+.stat .sub{font-size:11px;color:var(--text-sub);margin-top:1px;white-space:nowrap;}
+.stat .v small{font-size:11.5px;font-weight:600;color:var(--text-sub);margin-left:3px;font-family:var(--font-body);}
+
+.pcards{display:grid;gap:11px;margin-top:14px;}
+
+.pcard{border:1.5px solid var(--corp-border);border-radius:14px;padding:13px;background:var(--surface-strong);position:relative;}
+.pcard .ph{font-size:11.5px;font-weight:700;color:var(--corp-ink);}
+.pcard .pbody{display:flex;gap:11px;align-items:center;margin-top:8px;min-width:0;}
+.pcard .pname{font-weight:700;font-size:14px;color:var(--dark);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.pcard .psub{font-size:11.5px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pcard .pcount{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--dark);margin-top:8px;line-height:1;}
+.pcard .pcount small{font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--text-sub);margin-left:2px;}
+.pcard .prec{position:absolute;top:-9px;right:11px;background:var(--corp);color:var(--on-corp);font-size:10px;font-weight:800;padding:2px 10px;border-radius:980px;box-shadow:0 2px 8px rgba(29,185,84,.35);}
+
+.status{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;}
+.status dt{color:var(--text-sub);}
+.status dd{color:var(--dark);font-weight:600;font-variant-numeric:tabular-nums;}
+.live{display:inline-flex;align-items:center;gap:6px;}
+.live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--corp);box-shadow:0 0 0 3px var(--corp-pale);}
+.hint{font-size:11px;color:var(--text-faint);line-height:1.6;margin-top:10px;}
+
+/* ============================================================
+   RANKING（左列）
+============================================================ */
+.rank-list{list-style:none;}
+.rk{
+  display:grid;grid-template-columns:34px 48px minmax(0,1fr) minmax(52px,auto);align-items:center;gap:12px;
+  padding:10px 20px;border-bottom:1px solid var(--line);
+}
+.rk:last-child{border-bottom:0;}
+.rk .no{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text-faint);text-align:center;font-variant-numeric:tabular-nums;}
+.rk.top .no{
+  width:28px;height:28px;line-height:28px;border-radius:9px;justify-self:center;
+  background:var(--corp-pale);color:var(--corp-ink);font-size:14px;
+}
+.rk.top:first-child .no{background:var(--corp);color:var(--on-corp);}
+.rk .meta{min-width:0;}
+.rk .t{font-size:14px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rk .a{font-size:12px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rk .bar{height:4px;border-radius:3px;background:var(--corp-pale);margin-top:6px;overflow:hidden;}
+.rk .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--corp-deep),var(--corp));}
+.rk .cnt{text-align:right;white-space:nowrap;}
+.rk .cnt b{font-family:var(--font-display);font-size:17px;font-weight:700;color:var(--dark);font-variant-numeric:tabular-nums;}
+.rk .cnt small{font-size:11px;color:var(--text-sub);margin-left:1px;}
+.rk .cnt .min{display:block;font-size:10.5px;color:var(--text-faint);}
+@container (max-width:480px){
+  .rk{grid-template-columns:26px 44px minmax(0,1fr) minmax(46px,auto);gap:10px;}
+  .rk .art{width:44px;height:44px;}
+}
+
+/* ジャケ写・アーティスト写真（画像がないときは頭文字の色面） */
+.art{width:48px;height:48px;border-radius:10px;flex:none;object-fit:cover;overflow:hidden;background:var(--chip,#ddd);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-display);font-weight:800;font-size:17px;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.art.round{border-radius:50%;}
+.art.lg{width:54px;height:54px;}
+
+
+.more{display:block;width:100%;border:0;border-top:1px solid var(--line);background:transparent;color:var(--corp-ink);
+  font-size:12.5px;font-weight:700;padding:12px;cursor:pointer;}
+.more:hover{background:var(--corp-tint);}
+
+/* 月ごとの1位（表） */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}
+.bt{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--surface-strong);}
+.bt th,.bt td{border:1px solid var(--corp-border);padding:7px 10px;text-align:left;}
+.bt thead th{background:var(--corp);color:var(--on-corp);font-size:11px;font-weight:700;border-color:rgba(0,0,0,.08);}
+.bt td.r{text-align:right;font-family:var(--font-display);font-variant-numeric:tabular-nums;font-weight:600;}
+.bt td.m{font-weight:700;color:var(--corp-ink);white-space:nowrap;}
+.bt .song{display:flex;align-items:center;gap:9px;min-width:180px;}
+.bt .song .art{width:30px;height:30px;border-radius:6px;font-size:12px;box-shadow:none;}
+.bt .song small{display:block;color:var(--text-sub);font-size:11px;}
+
+.empty{color:var(--text-faint);font-size:12.5px;text-align:center;padding:30px 0;}
+.foot{max-width:1420px;margin:0 auto;padding:0 16px 40px;font-size:10.5px;color:var(--text-faint);line-height:1.75;}
+
+
+/* ============================================================
+   期間を選ぶパネル
+============================================================ */
+.seg button.pick{display:inline-flex;align-items:center;gap:5px;}
+.seg button.pick span{min-width:0;}
+.seg button.pick::after{content:'';width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:.7;}
+#pickPanel{
+  display:none;border-top:1px solid var(--corp-border);
+  background:var(--bar-bg);
+}
+#ui.pick-open #pickPanel{display:block;}
+.pick-inner{max-width:1420px;margin:0 auto;padding:14px 16px 16px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;}
+.pick-mode{flex:0 0 100%;}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.lbl{font-size:11px;font-weight:700;color:var(--text-faint);}
+.inp{
+  height:42px;padding:0 12px;font-size:14px;font-family:var(--font-body);min-width:120px;
+  background:var(--surface-strong);border:1.5px solid var(--corp-border);border-radius:10px;
+  color:var(--text);outline:none;-webkit-appearance:none;appearance:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.inp:focus{border-color:var(--corp);box-shadow:0 0 0 3px var(--corp-pale);}
+select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%2365686b' d='M6 8 0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:9px;}
+@media (max-width:479px){.inp{font-size:16px;}}
+.btn{
+  height:42px;padding:0 20px;border-radius:980px;border:0;cursor:pointer;
+  background:var(--corp);color:var(--on-corp);font-size:13.5px;font-weight:700;
+  box-shadow:0 3px 12px rgba(29,185,84,.30);transition:transform .25s var(--ease-spring),box-shadow .2s;
+}
+.btn:hover{transform:scale(1.03);box-shadow:0 6px 18px rgba(29,185,84,.38);}
+.btn.ghost{background:transparent;color:var(--text-sub);box-shadow:none;border:1.5px solid rgba(128,128,128,.25);}
+.chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{
+  border:1.5px solid var(--corp-border);background:var(--surface-strong);border-radius:980px;
+  padding:8px 16px;font-size:13px;font-weight:700;color:var(--corp-ink);cursor:pointer;font-variant-numeric:tabular-nums;
+}
+.chip:hover{background:var(--corp-pale);}
+.chip small{font-weight:500;color:var(--text-faint);margin-left:5px;}
+.pick-note{flex:0 0 100%;font-size:11px;color:var(--text-faint);}
+@media (max-width:760px){
+  .pick-inner{padding:12px 12px 14px;gap:10px 12px;}
+  .pick-inner .field{flex:1 1 130px;}
+  .pick-inner .btn{flex:1 1 100%;}
+}
+.bt tbody tr.jump{cursor:pointer;}
+.bt tbody tr.jump:hover td{background:var(--corp-tint);}
+
+/* ============================================================
+   RESPONSIVE（カードの幅に応じて中身を組み替える）
+============================================================ */
+.card{container-type:inline-size;}
+.card-head h2{min-width:0;}
+@container (max-width:440px){
+  .card-head .eyebrow{display:none;}
+}
+@container (max-width:520px){
+  .card-head{padding:11px 16px;gap:8px;}
+  .card-body{padding:14px 16px;}
+  .rk{padding:9px 16px;}
+}
+/* ランキングの見出し：狭いときは切り替えボタンを見出しの下に全幅で */
+@container (max-width:420px){
+  #rankCard .card-head .seg-mini{margin-left:0;flex:1 1 100%;display:grid;grid-template-columns:1fr 1fr;}
+  #monthlyCard .card-head .push{flex:1 1 100%;margin-left:0;}
+}
+/* 合計ボックス */
+.total-box .v{font-size:clamp(34px,11cqi,46px);}
+@container (max-width:360px){
+  .total-box{padding:15px 16px;}
+  .total-box .wave{height:62%;opacity:.16;}
+}
+/* 数字タイル：狭いときは1列の行表示（左に項目名と補足、右に数字） */
+@container (max-width:470px){
+  .stat-row{grid-template-columns:1fr;gap:0;border:1px solid var(--corp-border);border-radius:12px;overflow:hidden;background:var(--surface-strong);}
+  .stat{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;
+    border:0;border-radius:0;background:transparent;padding:9px 13px;}
+  .stat + .stat{border-top:1px solid var(--line);}
+  .stat .k{grid-column:1;grid-row:1;font-size:12px;color:var(--text);}
+  .stat .sub{grid-column:1;grid-row:2;margin:0;white-space:normal;}
+  .stat .v{grid-column:2;grid-row:1 / span 2;font-size:21px;text-align:right;}
+}
+/* No.1カード：2枚並べる余裕がなければ縦に積み、中身は横並び */
+.pcards{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));}
+.pcard .pbody{flex-direction:row;align-items:center;}
+.pcard .pname{word-break:break-word;}
+@container (max-width:300px){
+  .pcard .art.lg{width:46px;height:46px;}
+}
+/* ランキング行：とても狭いときは再生時間を隠す */
+@container (max-width:340px){
+  .rk{grid-template-columns:24px 40px minmax(0,1fr) minmax(38px,auto);gap:9px;padding:8px 12px;}
+  .rk .art{width:40px;height:40px;font-size:15px;}
+  .rk .cnt .min{display:none;}
+  .rk.top .no{width:24px;height:24px;line-height:24px;font-size:12px;border-radius:7px;}
+}
+/* 期間パネル：狭いときは入力欄を全幅に */
+@media (max-width:420px){
+  .pick-inner .field{flex:1 1 100%;}
+  .pick-mode .seg{display:grid;grid-template-columns:repeat(3,1fr);width:100%;}
+  .pick-mode .seg button{padding:6px 4px;}
+  .inp{width:100%;}
+}
+/* 状態カード */
+@container (max-width:300px){
+  .status{grid-template-columns:1fr;gap:0;}
+  .status dd{margin-bottom:6px;}
+}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>My Listening Log</h1>
-    <p id="updated"></p>
-  </header>
-  <nav class="tabs" id="tabs"></nav>
-  <main id="main"></main>
-  <footer>「分」は曲の長さ×回数の目安です</footer>
-</div>
-<script type="application/json" id="data">{"updated":"2026-09-28 23:40","year":2026,"periods":[{"key":"7d","label":"直近7日間","total":54,"minutes":186,"songs":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7"},{"t":"%%(Eung Eung)","a":"Apink","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333"},{"t":"BATTER UP (7 ver.)","a":"BABYMONSTER","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"MOON","a":"BABYMONSTER","c":2,"m":5,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"All Of The Lights","a":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f"},{"t":"Barbie Dreams","a":"Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Clarity","a":"Zedd / Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf"},{"t":"Anybody (feat. Nicki Minaj)","a":"Young Thug / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1"},{"t":"Whatever You Like","a":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78"},{"t":"Judas","a":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48"},{"t":"Obsessed (feat. Mariah Carey)","a":"Gucci Mane / Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe"},{"t":"You Know You Like It","a":"DJ Snake / AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99"},{"t":"Stuck In The Middle (7 ver.)","a":"BABYMONSTER","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"Alone (with Nicki Minaj) - Extended","a":"Kim Petras / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d"},{"t":"No Broken Hearts (feat. Nicki Minaj)","a":"Bebe Rexha / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26"},{"t":"Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","a":"Juicy J / Nicki Minaj / Lil Bibby / Young Thug","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40"},{"t":"Wop (Official Version)","a":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0"},{"t":"Beauty And A Beat","a":"Justin Bieber / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e"},{"t":"Worth It (feat. Kid Ink)","a":"Fifth Harmony / Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b"},{"t":"Being Alive","a":"Hardwell / JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029"},{"t":"What They Say","a":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2"},{"t":"Endless Fashion (feat. Nicki Minaj)","a":"Lil Uzi Vert / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24"},{"t":"Swalla (feat. Nicki Minaj & Ty Dolla $ign)","a":"Jason Derulo / Nicki Minaj / Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206"},{"t":"Break Free","a":"Ariana Grande / Zedd","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7"},{"t":"Baby","a":"Justin Bieber / Ludacris","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a"},{"t":"Starships","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084"},{"t":"I LIKE IT","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"TROLLZ","a":"6ix9ine / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d"},{"t":"Turn Me On (feat. Nicki Minaj)","a":"David Guetta / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"How We Roll","a":"Ciara / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0"},{"t":"PSYCHO","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"Where Them Girls At (feat. Nicki Minaj & Flo Rida)","a":"David Guetta / Flo Rida / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"Rise","a":"Jonas Blue / Jack & Jack","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6"},{"t":"It Girl","a":"Jason Derulo","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26"},{"t":"Drop It Low","a":"Ester Dean / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5"},{"t":"Chun-Li","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Like A Star (feat. Nicki Minaj)","a":"Fetty Wap / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48"},{"t":"BATTER UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0"},{"t":"WE GO UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"PARTY","a":"Jee Seok Jin / Lee Kwang Soo / Apink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca"},{"t":"LOCKED IN","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"DRIP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Sleepless Nights","a":"Armin van Buuren / Martin Garrix / Libby Whitehouse","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f"},{"t":"Options","a":"Loren Gray","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce"},{"t":"SUPA DUPA LUV","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"CLIK CLAK","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Afterglow","a":"Timmy Trumpet / Zen/it / ANYLIA","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077"},{"t":"Uptown Funk","a":"Fleur East","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4"},{"t":"Boy's a liar Pt. 2","a":"PinkPantheress / Ice Spice","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4"},{"t":"UnLonely","a":"J. Valentine / Chris Brown","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4"}],"artists":[{"n":"Nicki Minaj","c":16,"m":59,"img":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd"},{"n":"BABYMONSTER","c":13,"m":40,"img":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271"},{"n":"Apink","c":3,"m":10,"img":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706"},{"n":"Chris Brown","c":3,"m":8,"img":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9"},{"n":"Young Thug","c":2,"m":8,"img":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d"},{"n":"Zedd","c":2,"m":8,"img":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31"},{"n":"B.o.B","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca"},{"n":"Justin Bieber","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034"},{"n":"Jason Derulo","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1"},{"n":"David Guetta","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f"},{"n":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a"},{"n":"Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4"},{"n":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc"},{"n":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6"},{"n":"Gucci Mane","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428"},{"n":"Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63"},{"n":"DJ Snake","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600"},{"n":"AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324"},{"n":"Kim Petras","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06"},{"n":"Bebe Rexha","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de"},{"n":"Juicy J","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5"},{"n":"Lil Bibby","c":1,"m":3,"img":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51"},{"n":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5"},{"n":"Fifth Harmony","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97"},{"n":"Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53"},{"n":"Hardwell","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6"},{"n":"JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a"},{"n":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965"},{"n":"Lil Uzi Vert","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b"},{"n":"Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a"}]},{"key":"30d","label":"直近30日間","total":54,"minutes":186,"songs":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7"},{"t":"%%(Eung Eung)","a":"Apink","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333"},{"t":"BATTER UP (7 ver.)","a":"BABYMONSTER","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"MOON","a":"BABYMONSTER","c":2,"m":5,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"All Of The Lights","a":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f"},{"t":"Barbie Dreams","a":"Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Clarity","a":"Zedd / Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf"},{"t":"Anybody (feat. Nicki Minaj)","a":"Young Thug / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1"},{"t":"Whatever You Like","a":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78"},{"t":"Judas","a":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48"},{"t":"Obsessed (feat. Mariah Carey)","a":"Gucci Mane / Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe"},{"t":"You Know You Like It","a":"DJ Snake / AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99"},{"t":"Stuck In The Middle (7 ver.)","a":"BABYMONSTER","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"Alone (with Nicki Minaj) - Extended","a":"Kim Petras / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d"},{"t":"No Broken Hearts (feat. Nicki Minaj)","a":"Bebe Rexha / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26"},{"t":"Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","a":"Juicy J / Nicki Minaj / Lil Bibby / Young Thug","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40"},{"t":"Wop (Official Version)","a":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0"},{"t":"Beauty And A Beat","a":"Justin Bieber / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e"},{"t":"Worth It (feat. Kid Ink)","a":"Fifth Harmony / Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b"},{"t":"Being Alive","a":"Hardwell / JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029"},{"t":"What They Say","a":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2"},{"t":"Endless Fashion (feat. Nicki Minaj)","a":"Lil Uzi Vert / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24"},{"t":"Swalla (feat. Nicki Minaj & Ty Dolla $ign)","a":"Jason Derulo / Nicki Minaj / Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206"},{"t":"Break Free","a":"Ariana Grande / Zedd","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7"},{"t":"Baby","a":"Justin Bieber / Ludacris","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a"},{"t":"Starships","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084"},{"t":"I LIKE IT","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"TROLLZ","a":"6ix9ine / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d"},{"t":"Turn Me On (feat. Nicki Minaj)","a":"David Guetta / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"How We Roll","a":"Ciara / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0"},{"t":"PSYCHO","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"Where Them Girls At (feat. Nicki Minaj & Flo Rida)","a":"David Guetta / Flo Rida / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"Rise","a":"Jonas Blue / Jack & Jack","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6"},{"t":"It Girl","a":"Jason Derulo","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26"},{"t":"Drop It Low","a":"Ester Dean / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5"},{"t":"Chun-Li","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Like A Star (feat. Nicki Minaj)","a":"Fetty Wap / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48"},{"t":"BATTER UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0"},{"t":"WE GO UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"PARTY","a":"Jee Seok Jin / Lee Kwang Soo / Apink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca"},{"t":"LOCKED IN","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"DRIP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Sleepless Nights","a":"Armin van Buuren / Martin Garrix / Libby Whitehouse","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f"},{"t":"Options","a":"Loren Gray","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce"},{"t":"SUPA DUPA LUV","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"CLIK CLAK","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Afterglow","a":"Timmy Trumpet / Zen/it / ANYLIA","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077"},{"t":"Uptown Funk","a":"Fleur East","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4"},{"t":"Boy's a liar Pt. 2","a":"PinkPantheress / Ice Spice","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4"},{"t":"UnLonely","a":"J. Valentine / Chris Brown","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4"}],"artists":[{"n":"Nicki Minaj","c":16,"m":59,"img":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd"},{"n":"BABYMONSTER","c":13,"m":40,"img":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271"},{"n":"Apink","c":3,"m":10,"img":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706"},{"n":"Chris Brown","c":3,"m":8,"img":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9"},{"n":"Young Thug","c":2,"m":8,"img":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d"},{"n":"Zedd","c":2,"m":8,"img":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31"},{"n":"B.o.B","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca"},{"n":"Justin Bieber","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034"},{"n":"Jason Derulo","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1"},{"n":"David Guetta","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f"},{"n":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a"},{"n":"Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4"},{"n":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc"},{"n":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6"},{"n":"Gucci Mane","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428"},{"n":"Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63"},{"n":"DJ Snake","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600"},{"n":"AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324"},{"n":"Kim Petras","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06"},{"n":"Bebe Rexha","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de"},{"n":"Juicy J","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5"},{"n":"Lil Bibby","c":1,"m":3,"img":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51"},{"n":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5"},{"n":"Fifth Harmony","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97"},{"n":"Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53"},{"n":"Hardwell","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6"},{"n":"JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a"},{"n":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965"},{"n":"Lil Uzi Vert","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b"},{"n":"Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a"}]},{"key":"month","label":"9月","total":54,"minutes":186,"songs":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7"},{"t":"%%(Eung Eung)","a":"Apink","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333"},{"t":"BATTER UP (7 ver.)","a":"BABYMONSTER","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"MOON","a":"BABYMONSTER","c":2,"m":5,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"All Of The Lights","a":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f"},{"t":"Barbie Dreams","a":"Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Clarity","a":"Zedd / Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf"},{"t":"Anybody (feat. Nicki Minaj)","a":"Young Thug / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1"},{"t":"Whatever You Like","a":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78"},{"t":"Judas","a":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48"},{"t":"Obsessed (feat. Mariah Carey)","a":"Gucci Mane / Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe"},{"t":"You Know You Like It","a":"DJ Snake / AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99"},{"t":"Stuck In The Middle (7 ver.)","a":"BABYMONSTER","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"Alone (with Nicki Minaj) - Extended","a":"Kim Petras / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d"},{"t":"No Broken Hearts (feat. Nicki Minaj)","a":"Bebe Rexha / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26"},{"t":"Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","a":"Juicy J / Nicki Minaj / Lil Bibby / Young Thug","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40"},{"t":"Wop (Official Version)","a":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0"},{"t":"Beauty And A Beat","a":"Justin Bieber / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e"},{"t":"Worth It (feat. Kid Ink)","a":"Fifth Harmony / Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b"},{"t":"Being Alive","a":"Hardwell / JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029"},{"t":"What They Say","a":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2"},{"t":"Endless Fashion (feat. Nicki Minaj)","a":"Lil Uzi Vert / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24"},{"t":"Swalla (feat. Nicki Minaj & Ty Dolla $ign)","a":"Jason Derulo / Nicki Minaj / Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206"},{"t":"Break Free","a":"Ariana Grande / Zedd","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7"},{"t":"Baby","a":"Justin Bieber / Ludacris","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a"},{"t":"Starships","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084"},{"t":"I LIKE IT","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"TROLLZ","a":"6ix9ine / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d"},{"t":"Turn Me On (feat. Nicki Minaj)","a":"David Guetta / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"How We Roll","a":"Ciara / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0"},{"t":"PSYCHO","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"Where Them Girls At (feat. Nicki Minaj & Flo Rida)","a":"David Guetta / Flo Rida / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"Rise","a":"Jonas Blue / Jack & Jack","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6"},{"t":"It Girl","a":"Jason Derulo","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26"},{"t":"Drop It Low","a":"Ester Dean / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5"},{"t":"Chun-Li","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Like A Star (feat. Nicki Minaj)","a":"Fetty Wap / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48"},{"t":"BATTER UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0"},{"t":"WE GO UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"PARTY","a":"Jee Seok Jin / Lee Kwang Soo / Apink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca"},{"t":"LOCKED IN","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"DRIP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Sleepless Nights","a":"Armin van Buuren / Martin Garrix / Libby Whitehouse","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f"},{"t":"Options","a":"Loren Gray","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce"},{"t":"SUPA DUPA LUV","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"CLIK CLAK","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Afterglow","a":"Timmy Trumpet / Zen/it / ANYLIA","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077"},{"t":"Uptown Funk","a":"Fleur East","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4"},{"t":"Boy's a liar Pt. 2","a":"PinkPantheress / Ice Spice","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4"},{"t":"UnLonely","a":"J. Valentine / Chris Brown","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4"}],"artists":[{"n":"Nicki Minaj","c":16,"m":59,"img":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd"},{"n":"BABYMONSTER","c":13,"m":40,"img":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271"},{"n":"Apink","c":3,"m":10,"img":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706"},{"n":"Chris Brown","c":3,"m":8,"img":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9"},{"n":"Young Thug","c":2,"m":8,"img":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d"},{"n":"Zedd","c":2,"m":8,"img":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31"},{"n":"B.o.B","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca"},{"n":"Justin Bieber","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034"},{"n":"Jason Derulo","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1"},{"n":"David Guetta","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f"},{"n":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a"},{"n":"Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4"},{"n":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc"},{"n":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6"},{"n":"Gucci Mane","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428"},{"n":"Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63"},{"n":"DJ Snake","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600"},{"n":"AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324"},{"n":"Kim Petras","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06"},{"n":"Bebe Rexha","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de"},{"n":"Juicy J","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5"},{"n":"Lil Bibby","c":1,"m":3,"img":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51"},{"n":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5"},{"n":"Fifth Harmony","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97"},{"n":"Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53"},{"n":"Hardwell","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6"},{"n":"JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a"},{"n":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965"},{"n":"Lil Uzi Vert","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b"},{"n":"Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a"}]},{"key":"year","label":"2026年","total":54,"minutes":186,"songs":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7"},{"t":"%%(Eung Eung)","a":"Apink","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333"},{"t":"BATTER UP (7 ver.)","a":"BABYMONSTER","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"MOON","a":"BABYMONSTER","c":2,"m":5,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"All Of The Lights","a":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f"},{"t":"Barbie Dreams","a":"Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Clarity","a":"Zedd / Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf"},{"t":"Anybody (feat. Nicki Minaj)","a":"Young Thug / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1"},{"t":"Whatever You Like","a":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78"},{"t":"Judas","a":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48"},{"t":"Obsessed (feat. Mariah Carey)","a":"Gucci Mane / Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe"},{"t":"You Know You Like It","a":"DJ Snake / AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99"},{"t":"Stuck In The Middle (7 ver.)","a":"BABYMONSTER","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"Alone (with Nicki Minaj) - Extended","a":"Kim Petras / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d"},{"t":"No Broken Hearts (feat. Nicki Minaj)","a":"Bebe Rexha / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26"},{"t":"Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","a":"Juicy J / Nicki Minaj / Lil Bibby / Young Thug","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40"},{"t":"Wop (Official Version)","a":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0"},{"t":"Beauty And A Beat","a":"Justin Bieber / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e"},{"t":"Worth It (feat. Kid Ink)","a":"Fifth Harmony / Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b"},{"t":"Being Alive","a":"Hardwell / JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029"},{"t":"What They Say","a":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2"},{"t":"Endless Fashion (feat. Nicki Minaj)","a":"Lil Uzi Vert / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24"},{"t":"Swalla (feat. Nicki Minaj & Ty Dolla $ign)","a":"Jason Derulo / Nicki Minaj / Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206"},{"t":"Break Free","a":"Ariana Grande / Zedd","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7"},{"t":"Baby","a":"Justin Bieber / Ludacris","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a"},{"t":"Starships","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084"},{"t":"I LIKE IT","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"TROLLZ","a":"6ix9ine / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d"},{"t":"Turn Me On (feat. Nicki Minaj)","a":"David Guetta / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"How We Roll","a":"Ciara / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0"},{"t":"PSYCHO","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"Where Them Girls At (feat. Nicki Minaj & Flo Rida)","a":"David Guetta / Flo Rida / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"Rise","a":"Jonas Blue / Jack & Jack","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6"},{"t":"It Girl","a":"Jason Derulo","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26"},{"t":"Drop It Low","a":"Ester Dean / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5"},{"t":"Chun-Li","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Like A Star (feat. Nicki Minaj)","a":"Fetty Wap / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48"},{"t":"BATTER UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0"},{"t":"WE GO UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"PARTY","a":"Jee Seok Jin / Lee Kwang Soo / Apink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca"},{"t":"LOCKED IN","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"DRIP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Sleepless Nights","a":"Armin van Buuren / Martin Garrix / Libby Whitehouse","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f"},{"t":"Options","a":"Loren Gray","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce"},{"t":"SUPA DUPA LUV","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"CLIK CLAK","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Afterglow","a":"Timmy Trumpet / Zen/it / ANYLIA","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077"},{"t":"Uptown Funk","a":"Fleur East","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4"},{"t":"Boy's a liar Pt. 2","a":"PinkPantheress / Ice Spice","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4"},{"t":"UnLonely","a":"J. Valentine / Chris Brown","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4"}],"artists":[{"n":"Nicki Minaj","c":16,"m":59,"img":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd"},{"n":"BABYMONSTER","c":13,"m":40,"img":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271"},{"n":"Apink","c":3,"m":10,"img":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706"},{"n":"Chris Brown","c":3,"m":8,"img":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9"},{"n":"Young Thug","c":2,"m":8,"img":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d"},{"n":"Zedd","c":2,"m":8,"img":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31"},{"n":"B.o.B","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca"},{"n":"Justin Bieber","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034"},{"n":"Jason Derulo","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1"},{"n":"David Guetta","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f"},{"n":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a"},{"n":"Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4"},{"n":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc"},{"n":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6"},{"n":"Gucci Mane","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428"},{"n":"Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63"},{"n":"DJ Snake","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600"},{"n":"AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324"},{"n":"Kim Petras","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06"},{"n":"Bebe Rexha","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de"},{"n":"Juicy J","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5"},{"n":"Lil Bibby","c":1,"m":3,"img":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51"},{"n":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5"},{"n":"Fifth Harmony","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97"},{"n":"Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53"},{"n":"Hardwell","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6"},{"n":"JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a"},{"n":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965"},{"n":"Lil Uzi Vert","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b"},{"n":"Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a"}]},{"key":"all","label":"全期間","total":54,"minutes":186,"songs":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7"},{"t":"%%(Eung Eung)","a":"Apink","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333"},{"t":"BATTER UP (7 ver.)","a":"BABYMONSTER","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"MOON","a":"BABYMONSTER","c":2,"m":5,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"All Of The Lights","a":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f"},{"t":"Barbie Dreams","a":"Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Clarity","a":"Zedd / Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf"},{"t":"Anybody (feat. Nicki Minaj)","a":"Young Thug / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1"},{"t":"Whatever You Like","a":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78"},{"t":"Judas","a":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48"},{"t":"Obsessed (feat. Mariah Carey)","a":"Gucci Mane / Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe"},{"t":"You Know You Like It","a":"DJ Snake / AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99"},{"t":"Stuck In The Middle (7 ver.)","a":"BABYMONSTER","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683"},{"t":"Alone (with Nicki Minaj) - Extended","a":"Kim Petras / Nicki Minaj","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d"},{"t":"No Broken Hearts (feat. Nicki Minaj)","a":"Bebe Rexha / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26"},{"t":"Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","a":"Juicy J / Nicki Minaj / Lil Bibby / Young Thug","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40"},{"t":"Wop (Official Version)","a":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0"},{"t":"Beauty And A Beat","a":"Justin Bieber / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e"},{"t":"Worth It (feat. Kid Ink)","a":"Fifth Harmony / Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b"},{"t":"Being Alive","a":"Hardwell / JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029"},{"t":"What They Say","a":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2"},{"t":"Endless Fashion (feat. Nicki Minaj)","a":"Lil Uzi Vert / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24"},{"t":"Swalla (feat. Nicki Minaj & Ty Dolla $ign)","a":"Jason Derulo / Nicki Minaj / Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206"},{"t":"Break Free","a":"Ariana Grande / Zedd","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7"},{"t":"Baby","a":"Justin Bieber / Ludacris","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a"},{"t":"Starships","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084"},{"t":"I LIKE IT","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"TROLLZ","a":"6ix9ine / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d"},{"t":"Turn Me On (feat. Nicki Minaj)","a":"David Guetta / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"How We Roll","a":"Ciara / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0"},{"t":"PSYCHO","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"Where Them Girls At (feat. Nicki Minaj & Flo Rida)","a":"David Guetta / Flo Rida / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4"},{"t":"Rise","a":"Jonas Blue / Jack & Jack","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6"},{"t":"It Girl","a":"Jason Derulo","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26"},{"t":"Drop It Low","a":"Ester Dean / Chris Brown","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5"},{"t":"Chun-Li","a":"Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4"},{"t":"Like A Star (feat. Nicki Minaj)","a":"Fetty Wap / Nicki Minaj","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48"},{"t":"BATTER UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0"},{"t":"WE GO UP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"PARTY","a":"Jee Seok Jin / Lee Kwang Soo / Apink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca"},{"t":"LOCKED IN","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f"},{"t":"DRIP","a":"BABYMONSTER","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Sleepless Nights","a":"Armin van Buuren / Martin Garrix / Libby Whitehouse","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f"},{"t":"Options","a":"Loren Gray","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce"},{"t":"SUPA DUPA LUV","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e"},{"t":"CLIK CLAK","a":"BABYMONSTER","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33"},{"t":"Afterglow","a":"Timmy Trumpet / Zen/it / ANYLIA","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077"},{"t":"Uptown Funk","a":"Fleur East","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4"},{"t":"Boy's a liar Pt. 2","a":"PinkPantheress / Ice Spice","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4"},{"t":"UnLonely","a":"J. Valentine / Chris Brown","c":1,"m":2,"img":"https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4"}],"artists":[{"n":"Nicki Minaj","c":16,"m":59,"img":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd"},{"n":"BABYMONSTER","c":13,"m":40,"img":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271"},{"n":"Apink","c":3,"m":10,"img":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706"},{"n":"Chris Brown","c":3,"m":8,"img":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9"},{"n":"Young Thug","c":2,"m":8,"img":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d"},{"n":"Zedd","c":2,"m":8,"img":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31"},{"n":"B.o.B","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca"},{"n":"Justin Bieber","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034"},{"n":"Jason Derulo","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1"},{"n":"David Guetta","c":2,"m":6,"img":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f"},{"n":"Kanye West","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a"},{"n":"Foxes","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4"},{"n":"T.I.","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc"},{"n":"Lady Gaga","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6"},{"n":"Gucci Mane","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428"},{"n":"Mariah Carey","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63"},{"n":"DJ Snake","c":1,"m":4,"img":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600"},{"n":"AlunaGeorge","c":1,"m":4,"img":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324"},{"n":"Kim Petras","c":1,"m":4,"img":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06"},{"n":"Bebe Rexha","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de"},{"n":"Juicy J","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5"},{"n":"Lil Bibby","c":1,"m":3,"img":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51"},{"n":"J. Dash","c":1,"m":3,"img":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5"},{"n":"Fifth Harmony","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97"},{"n":"Kid Ink","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53"},{"n":"Hardwell","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6"},{"n":"JGUAR","c":1,"m":3,"img":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a"},{"n":"Zara Larsson","c":1,"m":3,"img":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965"},{"n":"Lil Uzi Vert","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b"},{"n":"Ty Dolla $ign","c":1,"m":3,"img":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a"}]}],"monthly":[{"t":"Out of My Mind (feat. Nicki Minaj)","a":"B.o.B / Nicki Minaj","c":2,"m":7,"img":"https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7","month":"9月","total":54}]}</script>
+
+<!-- ============================ CONTROL BAR ============================ -->
+<header id="ui">
+  <div id="topbar">
+    <div class="bar-logo">
+      <span class="logo-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="logo-text">My Listening Log</span>
+      <span class="scope-tag">Spotify</span>
+    </div>
+    <span class="tb-spacer"></span>
+    <div class="seg" id="periodSegDesk" role="tablist" aria-label="集計期間"></div>
+  </div>
+  <div id="periodRow"><div class="seg" id="periodSegMobile" role="tablist" aria-label="集計期間"></div></div>
+  <div id="pickPanel">
+    <div class="pick-inner">
+      <div class="pick-mode">
+        <div class="seg seg-mini" id="pickModeSeg">
+          <button type="button" data-pm="month" class="on">月を選ぶ</button>
+          <button type="button" data-pm="year">年を選ぶ</button>
+          <button type="button" data-pm="range">日付で指定</button>
+        </div>
+      </div>
+      <div class="pm pm-month" style="display:contents">
+        <div class="field"><label class="lbl" for="selYear">年</label><select class="inp" id="selYear"></select></div>
+        <div class="field"><label class="lbl" for="selMonth">月</label><select class="inp" id="selMonth"></select></div>
+        <button type="button" class="btn" id="applyMonth">この月を表示</button>
+      </div>
+      <div class="pm pm-year" style="display:none">
+        <div class="chips" id="yearChips"></div>
+      </div>
+      <div class="pm pm-range" style="display:none">
+        <div class="field"><label class="lbl" for="dFrom">開始日</label><input class="inp" type="date" id="dFrom"></div>
+        <div class="field"><label class="lbl" for="dTo">終了日</label><input class="inp" type="date" id="dTo"></div>
+        <button type="button" class="btn" id="applyRange">この期間を表示</button>
+      </div>
+      <p class="pick-note" id="pickNote"></p>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="grid">
+
+    <!-- ============================ ランキング ============================ -->
+    <div class="main-col">
+      <section class="card" id="rankCard">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">♪</span>
+          <h2 id="rankTitle">ランキング</h2>
+          <span class="eyebrow">Ranking</span>
+          <div class="seg seg-mini push" id="modeSeg">
+            <button type="button" data-mode="songs" class="on">曲</button>
+            <button type="button" data-mode="artists">アーティスト</button>
+          </div>
+        </div>
+        <ol class="rank-list" id="rankList"></ol>
+        <button type="button" class="more" id="moreBtn">もっと見る</button>
+      </section>
+
+      <section class="card" id="monthlyCard">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">★</span>
+          <h2 id="monthlyTitle">月ごとの1位</h2>
+          <span class="eyebrow">Monthly</span><span class="push" style="font-size:11px;color:var(--text-faint)">行を押すとその月を表示</span>
+        </div>
+        <div class="card-body">
+          <div class="tbl-scroll"><table class="bt" id="monthlyTable"></table></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============================ サマリー ============================ -->
+    <aside class="side-col">
+      <section class="card" id="summaryCard">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">▶</span>
+          <h2 id="sumTitle">サマリー</h2>
+          <span class="eyebrow">Summary</span>
+        </div>
+        <div class="card-body">
+          <div class="total-box">
+            <div class="wave" aria-hidden="true" id="wave"></div>
+            <div class="k">再生回数</div>
+            <div class="v" id="sumPlays"></div>
+            <div class="m" id="sumMinutes"></div>
+          </div>
+          <div class="stat-row">
+            <div class="stat"><div class="k">聴いた曲</div><div class="v" id="sumSongs"></div><div class="sub" id="sumSongsDaily"></div></div>
+            <div class="stat"><div class="k">アーティスト</div><div class="v" id="sumArtists"></div><div class="sub" id="sumArtistsDaily"></div></div>
+            <div class="stat"><div class="k">1日の平均</div><div class="v" id="sumDaily"></div><div class="sub">再生時間</div></div>
+          </div>
+          <div class="pcards" id="pcards"></div>
+        </div>
+      </section>
+
+      <section class="card" id="statusCard">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">↻</span>
+          <h2>記録の状態</h2>
+          <span class="eyebrow">Status</span>
+        </div>
+        <div class="card-body">
+          <dl class="status">
+            <dt>最終確認</dt><dd><span class="live" id="stChecked">―</span></dd>
+            <dt>最後に聴いた曲</dt><dd id="stLast">―</dd>
+            <dt>次の確認</dt><dd id="stNext">―</dd>
+          </dl>
+          <p class="hint">Spotifyの再生履歴を1時間ごとに確認して記録しています。プライベートセッション中の再生と30秒未満の再生は記録されません。</p>
+        </div>
+      </section>
+    </aside>
+
+  </div>
+</main>
+
+<footer class="foot">
+  再生時間は「曲の長さ×再生回数」で計算した目安です。データの取得元はSpotifyです。
+</footer>
+
+<script type="application/json" id="data">{"checked":1790607537381,"songs":[["Swalla (feat. Nicki Minaj & Ty Dolla $ign)","Jason Derulo / Nicki Minaj / Ty Dolla $ign","https://i.scdn.co/image/ab67616d00001e02e61bf150469db99447be6206",3.61],["No Broken Hearts (feat. Nicki Minaj)","Bebe Rexha / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02a9e375d2bf1f6d5b1145fd26",4.0],["Out of My Mind (feat. Nicki Minaj)","B.o.B / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02a191830c8b300bc71c2faac7",3.72],["Boy's a liar Pt. 2","PinkPantheress / Ice Spice","https://i.scdn.co/image/ab67616d00001e0215a9d5a02103c2d683c07fb4",2.18],["Beauty And A Beat","Justin Bieber / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02f1d02a6cec967f8b6b78f76e",3.8],["Break Free","Ariana Grande / Zedd","https://i.scdn.co/image/ab67616d00001e0246d1ba2fae86b9c5702533e7",3.58],["Where Them Girls At (feat. Nicki Minaj & Flo Rida)","David Guetta / Flo Rida / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4",3.25],["Barbie Dreams","Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4",4.66],["Like A Star (feat. Nicki Minaj)","Fetty Wap / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e023830866ee38b27c10773df48",3.19],["Drop It Low","Ester Dean / Chris Brown","https://i.scdn.co/image/ab67616d00001e0234164986ad27f32bcf446df5",3.2],["Anybody (feat. Nicki Minaj)","Young Thug / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02c30e3fe7ac8b94aa3d803fd1",4.25],["Endless Fashion (feat. Nicki Minaj)","Lil Uzi Vert / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02d7f97f84ffeaf2077813ef24",3.61],["Obsessed (feat. Mariah Carey)","Gucci Mane / Mariah Carey","https://i.scdn.co/image/ab67616d00001e02c857ec9d7bac0845956d10fe",4.14],["Wop (Official Version)","J. Dash","https://i.scdn.co/image/ab67616d00001e0286dfb4764c678c1a7cb1ffc0",3.86],["Starships","Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02fa2a62fe48c2c929c834c084",3.51],["Baby","Justin Bieber / Ludacris","https://i.scdn.co/image/ab67616d00001e02629dc9e2e3bc20bbd7d92e4a",3.57],["Clarity","Zedd / Foxes","https://i.scdn.co/image/ab67616d00001e02941dd3b3343d9cb9329d37bf",4.52],["Turn Me On (feat. Nicki Minaj)","David Guetta / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02d677e549898800ec72665ac4",3.33],["It Girl","Jason Derulo","https://i.scdn.co/image/ab67616d00001e0281541b43fcbc56488853de26",3.2],["TROLLZ","6ix9ine / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e0208c1c9cba7dc84118976e66d",3.38],["Alone (with Nicki Minaj) - Extended","Kim Petras / Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02a23a68d9a8f590cf8c38cd0d",4.02],["Chun-Li","Nicki Minaj","https://i.scdn.co/image/ab67616d00001e02540ab7c149079184e8724dc4",3.19],["Whatever You Like","T.I.","https://i.scdn.co/image/ab67616d00001e02b6d4478c6f91f1cb2d326c78",4.16],["Judas","Lady Gaga","https://i.scdn.co/image/ab67616d00001e026d2bc35812c2d7f67d110e48",4.15],["You Know You Like It","DJ Snake / AlunaGeorge","https://i.scdn.co/image/ab67616d00001e02567a71695181017949f14f99",4.12],["Low (feat. Nicki Minaj, Lil Bibby & Young Thug)","Juicy J / Nicki Minaj / Lil Bibby / Young Thug","https://i.scdn.co/image/ab67616d00001e02473c13992ba7f3f5d6f68b40",3.98],["How We Roll","Ciara / Chris Brown","https://i.scdn.co/image/ab67616d00001e025100449968bf0f0b8ad31db0",3.33],["Rise","Jonas Blue / Jack & Jack","https://i.scdn.co/image/ab67616d00001e025b6bcc59c3562a6f362344c6",3.24],["Being Alive","Hardwell / JGUAR","https://i.scdn.co/image/ab67616d00001e020050ab54bd0edc5b54e31029",3.69],["All Of The Lights","Kanye West","https://i.scdn.co/image/ab67616d00001e02d9194aa18fa4c9362b47464f",4.99],["UnLonely","J. Valentine / Chris Brown","https://i.scdn.co/image/ab67616d00001e021f5aec52490690295878b5d4",2.08],["Uptown Funk","Fleur East","https://i.scdn.co/image/ab67616d00001e023a223310af5865adcf7ac4d4",2.33],["Sleepless Nights","Armin van Buuren / Martin Garrix / Libby Whitehouse","https://i.scdn.co/image/ab67616d00001e025be3861b4c8c964724bd9f4f",3.01],["Options","Loren Gray","https://i.scdn.co/image/ab67616d00001e02d8e1daee9b2b11ea32172fce",2.92],["Afterglow","Timmy Trumpet / Zen/it / ANYLIA","https://i.scdn.co/image/ab67616d00001e028846af6f82dca25171546077",2.57],["WE GO UP","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e",3.12],["PSYCHO","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e",3.26],["Worth It (feat. Kid Ink)","Fifth Harmony / Kid Ink","https://i.scdn.co/image/ab67616d00001e0242d324c29b1f8d408c08f86b",3.74],["DRIP","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33",3.01],["CLIK CLAK","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e022c1cfac545157794ca081f33",2.82],["SUPA DUPA LUV","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e02b6142a9ef905e07aafac1c6e",2.88],["MOON","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f",2.77],["I LIKE IT","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f",3.44],["LOCKED IN","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e0274421085d8f38435d4d87d2f",3.03],["BATTER UP","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e0224e7d3f6bcc7f5594638a4f0",3.14],["What They Say","Zara Larsson","https://i.scdn.co/image/ab67616d00001e028cc1a95fa8713722ae72c2f2",3.65],["%%(Eung Eung)","Apink","https://i.scdn.co/image/ab67616d00001e0233ba381e09736459efed6333",3.47],["PARTY","Jee Seok Jin / Lee Kwang Soo / Apink","https://i.scdn.co/image/ab67616d00001e02b8c454e1e6258c7a7d3b9eca",3.11],["BATTER UP (7 ver.)","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683",3.15],["Stuck In The Middle (7 ver.)","BABYMONSTER","https://i.scdn.co/image/ab67616d00001e024f6afc385052250c766a5683",4.11]],"plays":[[1790486379,0],[1790486628,1],[1790486789,2],[1790490223,2],[1790490354,3],[1790490583,4],[1790490798,5],[1790490993,6],[1790491273,7],[1790491465,8],[1790491657,9],[1790491912,10],[1790492129,11],[1790492378,12],[1790492610,13],[1790492821,14],[1790493036,15],[1790493308,16],[1790493508,17],[1790493700,18],[1790493903,19],[1790494145,20],[1790494337,21],[1790494587,22],[1790494836,23],[1790495084,24],[1790495975,25],[1790497510,26],[1790497705,27],[1790497927,28],[1790498261,29],[1790498386,30],[1790498526,31],[1790498707,32],[1790498883,33],[1790499135,34],[1790500140,35],[1790501087,36],[1790501312,37],[1790501494,38],[1790501663,39],[1790501836,40],[1790502002,41],[1790502209,42],[1790502391,43],[1790502579,44],[1790503233,45],[1790505465,46],[1790550198,46],[1790550920,47],[1790605884,41],[1790606088,48],[1790606156,48],[1790606403,49]],"artistImages":{"Jason Derulo":"https://i.scdn.co/image/ab67616100005174fb65e1af01cf95c25bd29ed1","Nicki Minaj":"https://i.scdn.co/image/ab6761610000517407a50f0a9a8f11e5a1102cbd","Ty Dolla $ign":"https://i.scdn.co/image/ab676161000051744ef6e245168c33922bc6df1a","Bebe Rexha":"https://i.scdn.co/image/ab676161000051747623b3d99b9adc3200b834de","B.o.B":"https://i.scdn.co/image/ab67616100005174834607348a8574d8f3b7a2ca","PinkPantheress":"https://i.scdn.co/image/ab676161000051746bf10d74063b45938f5d8656","Ice Spice":"https://i.scdn.co/image/ab67616100005174ab47bb63dae13065213602cd","Justin Bieber":"https://i.scdn.co/image/ab67616100005174af20f7db5288bce9beede034","Ariana Grande":"https://i.scdn.co/image/ab6761610000517468412f2d0177a9ebc265ff58","Zedd":"https://i.scdn.co/image/ab67616100005174eefa05f0b8fcafd4beb19d31","David Guetta":"https://i.scdn.co/image/ab67616100005174f150017ca69c8793503c2d4f","Flo Rida":"https://i.scdn.co/image/ab67616100005174655ca8f3196953554b479452","Fetty Wap":"https://i.scdn.co/image/ab67616100005174f6df2e78223259e7d425b1ee","Ester Dean":"https://i.scdn.co/image/ab67616100005174a47c49099e4ff4fab737beb7","Chris Brown":"https://i.scdn.co/image/ab67616100005174913ab85302df0ddfb77131e9","Young Thug":"https://i.scdn.co/image/ab676161000051749f2fb33940aac624dc5d100d","Lil Uzi Vert":"https://i.scdn.co/image/ab676161000051740eb7019b6bb9ce078a9ac03b","Gucci Mane":"https://i.scdn.co/image/ab67616100005174b9b77f64bd278ffde2c94428","Mariah Carey":"https://i.scdn.co/image/ab6761610000517421453384a10b1f8e18877f63","J. Dash":"https://i.scdn.co/image/6e08b29512c86b1eb65c8fa6558e0bd1b80c6fb5","Ludacris":"https://i.scdn.co/image/ab67616100005174af84ce67e0eeab648a21801d","Foxes":"https://i.scdn.co/image/ab67616100005174adb663c00fcc431448abfcb4","6ix9ine":"https://i.scdn.co/image/ab67616100005174f2ce0f1899ab2bf14a4eb286","Kim Petras":"https://i.scdn.co/image/ab6761610000517415a73d2fd90eb732c846ce06","T.I.":"https://i.scdn.co/image/ab6761610000517412057d342f33c61b3768f2bc","Lady Gaga":"https://i.scdn.co/image/ab67616100005174aadc18cac8d48124357c38e6","DJ Snake":"https://i.scdn.co/image/ab67616100005174175df1a8848d8ff67c6d5600","AlunaGeorge":"https://i.scdn.co/image/ab676161000051747261f020417f3931cc3db324","Juicy J":"https://i.scdn.co/image/ab67616100005174116fc50265ef72d7e66723a5","Lil Bibby":"https://i.scdn.co/image/9c37f8c40ab3594de42f1861f592f558f91d0f51","Ciara":"https://i.scdn.co/image/ab676161000051745d1fbc6d7d17e7ba6b587eaf","Jonas Blue":"https://i.scdn.co/image/ab67616100005174932efe5392a48f64e5bd54d8","Jack & Jack":"https://i.scdn.co/image/ab67616100005174dc1ab6d7c14c82f31e946693","Hardwell":"https://i.scdn.co/image/ab67616100005174950dafd5978fad2718f4aeb6","JGUAR":"https://i.scdn.co/image/ab6761610000517415f4839e262cd2872bce8a6a","Kanye West":"https://i.scdn.co/image/ab676161000051746e835a500e791bf9c27a422a","J. Valentine":"https://i.scdn.co/image/ab67616100005174d76ca88bd4384d94e714c39b","Fleur East":"https://i.scdn.co/image/ab676161000051740097095e441d44a6bfefdb89","Armin van Buuren":"https://i.scdn.co/image/ab6761610000517460f60edeaa78efbf3d335b2c","Martin Garrix":"https://i.scdn.co/image/ab67616100005174f5b8ee60f1f4ee3453aba40b","Libby Whitehouse":"https://i.scdn.co/image/ab676161000051748af09d5045ca6ce7025a123d","Loren Gray":"https://i.scdn.co/image/ab676161000051740799b606aa5ef932b31ff8be","Timmy Trumpet":"https://i.scdn.co/image/ab6761610000517482ac9eee4c8a5f57412b4821","Zen/it":"https://i.scdn.co/image/ab67616100005174a3ac450713186c4631fac3e1","ANYLIA":"https://i.scdn.co/image/ab67616100005174baadb90ba565208f67803adc","BABYMONSTER":"https://i.scdn.co/image/ab6761610000517443a4c69b563a55f307bde271","Fifth Harmony":"https://i.scdn.co/image/ab676161000051745acb3cb0a8b87d3952738b97","Kid Ink":"https://i.scdn.co/image/ab67616100005174f4904a817005f3b96f4e6e53","Zara Larsson":"https://i.scdn.co/image/ab67616100005174d519a7e349541cba8f85e965","Apink":"https://i.scdn.co/image/ab676161000051745d7e6f087811f89d7c8f0706","Lee Kwang Soo":"https://i.scdn.co/image/ab67616d00001e02359a0a85addc332e594f8bde"}}</script>
 <script>
 (function(){
-  var D = JSON.parse(document.getElementById('data').textContent);
-  var state = {p: 0, mode: 'songs'};
-  function esc(s){return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  function hue(s){var h=0;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))%360;}return h;}
-  function art(img, name, extra){
-    var cls = 'art' + (extra ? ' ' + extra : '');
-    var ph = '<div class="'+cls+'" style="background:hsl('+hue(name)+',55%,48%)">'+esc((name||'?').charAt(0))+'</div>';
-    if(!img) return ph;
-    return '<img class="'+cls+'" src="'+esc(img)+'" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.ph" data-ph="'+esc(ph)+'">';
-  }
+  /* ============================================================
+     データ（GitHub Actions が1時間ごとに埋め込む）
+     songs: [曲名, アーティスト, ジャケ写URL, 曲の長さ(分)]
+     plays: [再生日時(秒), 曲番号]
+  ============================================================ */
+  var RAW = JSON.parse(document.getElementById('data').textContent || '{}');
+  var SONGS = (RAW.songs || []).map(function(x){ return {t:x[0], a:x[1], img:x[2]||'', min:x[3]||0}; });
+  var PLAYS = (RAW.plays || []).map(function(x){ return [x[0]*1000, x[1]]; });
+  PLAYS.sort(function(a,b){return a[0]-b[0];});
+  var ARTIST_IMG = RAW.artistImages || {};
+  var DAY = 86400000;
+  var NOW = Date.now();
+  var LAST_PLAY = PLAYS.length ? PLAYS[PLAYS.length-1][0] : null;
+
+  /* ============================================================
+     集計
+  ============================================================ */
+  var $ = function(id){return document.getElementById(id);};
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function fmt(n){return Number(n).toLocaleString('ja-JP');}
-
-  if(!D.periods){
-    document.getElementById('main').innerHTML='<p class="empty">まだ記録がありません</p>';
-    return;
+  function hue(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;}
+  function ph(name, cls){
+    var h = hue(name);
+    return '<div class="art '+(cls||'')+'" style="background:linear-gradient(135deg,hsl('+h+',62%,58%),hsl('+((h+40)%360)+',55%,34%))">'+esc(name.charAt(0))+'</div>';
   }
-  document.getElementById('updated').textContent = '最終記録 ' + D.updated;
+  function art(name, cls, img){
+    if (!img) return ph(name, cls);
+    return '<img class="art '+(cls||'')+'" src="'+esc(img)+'" alt="" loading="lazy" decoding="async" data-ph="'+esc(ph(name, cls))+'" onerror="this.outerHTML=this.dataset.ph">';
+  }
+  function hm(min){var h=Math.floor(min/60), m=min%60; return h ? fmt(h)+'時間'+m+'分' : m+'分';}
+  // 日本時間の年・月・日を取り出す
+  function jst(t){var d=new Date(t+9*3600000);return {y:d.getUTCFullYear(),m:d.getUTCMonth()+1,d:d.getUTCDate()};}
+  function jstStart(y,m,d){return Date.UTC(y,m-1,d||1) - 9*3600000;}
+  function lowerBound(t){var lo=0,hi=PLAYS.length;while(lo<hi){var mid=(lo+hi)>>1;if(PLAYS[mid][0]<t)lo=mid+1;else hi=mid;}return lo;}
 
-  function renderTabs(){
-    document.getElementById('tabs').innerHTML = D.periods.map(function(p,i){
-      return '<button class="tab'+(i===state.p?' on':'')+'" data-i="'+i+'">'+esc(p.label)+'</button>';
+  function aggregate(from, to){
+    var a = lowerBound(from), b = lowerBound(to);
+    var sc = {}, ac = {}, total = 0, minutes = 0;
+    var dayKey = -1, daySongs = {}, dayArtists = {}, songDays = 0, artistDays = 0;
+    for (var i = a; i < b; i++) {
+      var idx = PLAYS[i][1], sg = SONGS[idx]; if (!sg) continue;
+      var dk = Math.floor((PLAYS[i][0] + 9*3600000) / DAY);
+      if (dk !== dayKey) { dayKey = dk; daySongs = {}; dayArtists = {}; }
+      if (!daySongs[idx]) { daySongs[idx] = 1; songDays++; }
+      total++; minutes += sg.min;
+      sc[idx] = (sc[idx]||0) + 1;
+      sg.a.split(' / ').forEach(function(n){
+        if (!n) return;
+        if (!dayArtists[n]) { dayArtists[n] = 1; artistDays++; }
+        ac[n] = ac[n] || {n:n,c:0,m:0,top:{}}; ac[n].c++; ac[n].m += sg.min; ac[n].top[idx] = (ac[n].top[idx]||0) + 1;
+      });
+    }
+    var songs = Object.keys(sc).map(function(k){var sg=SONGS[k];return {t:sg.t,a:sg.a,c:sc[k],m:Math.round(sc[k]*sg.min),img:sg.img};})
+      .sort(function(x,y){return y.c-x.c || y.m-x.m;});
+    var artists = Object.keys(ac).map(function(k){
+      var o = ac[k], img = ARTIST_IMG[k] || '';
+      if (!img) { var best = Object.keys(o.top).sort(function(x,y){return o.top[y]-o.top[x];}); for (var q=0;q<best.length;q++){ if (SONGS[best[q]].img){ img = SONGS[best[q]].img; break; } } }
+      return {n:o.n, c:o.c, m:Math.round(o.m), img:img};
+    }).sort(function(x,y){return y.c-x.c || y.m-x.m;});
+    var first = Math.max(from, PLAYS.length ? PLAYS[0][0] : from), last = Math.min(to, NOW);
+    var days = Math.max(1, Math.ceil((last - first) / DAY));
+    return {songs:songs, artists:artists, total:total, minutes:Math.round(minutes), days:days, songDays:songDays, artistDays:artistDays};
+  }
+
+  /* ============================================================
+     期間の定義
+  ============================================================ */
+  var nowJ = jst(NOW), FIRST = PLAYS.length ? PLAYS[0][0] : NOW, firstJ = jst(FIRST);
+  function presetRange(key){
+    if (key==='7d')    return {label:'直近7日間', from:NOW-7*DAY, to:NOW+1, kind:'short'};
+    if (key==='30d')   return {label:'直近30日間', from:NOW-30*DAY, to:NOW+1, kind:'short'};
+    if (key==='month') return monthRange(nowJ.y, nowJ.m);
+    if (key==='year')  return yearRange(nowJ.y);
+    return {label:'全期間', from:0, to:NOW+1, kind:'all'};
+  }
+  function monthRange(y,m){return {label:y+'年'+m+'月', from:jstStart(y,m), to:m===12?jstStart(y+1,1):jstStart(y,m+1), kind:'month', y:y, m:m};}
+  function yearRange(y){return {label:y+'年', from:jstStart(y,1), to:jstStart(y+1,1), kind:'year', y:y};}
+
+  var PRESETS = [
+    {key:'7d', label:'直近7日間', short:'7日間'}, {key:'30d', label:'直近30日間', short:'30日間'},
+    {key:'month', label:nowJ.m+'月'}, {key:'year', label:nowJ.y+'年'}, {key:'all', label:'全期間'}
+  ];
+  var state = {preset:'7d', custom:null, mode:'songs', all:false, pickMode:'month'};
+  var TOP = 20;
+  function currentRange(){ return state.custom || presetRange(state.preset); }
+
+  /* ============================================================
+     上部の期間ボタン
+  ============================================================ */
+  function tabs(){
+    var h = PRESETS.map(function(p){
+      var on = !state.custom && state.preset===p.key;
+      return '<button type="button" role="tab" aria-selected="'+on+'" class="'+(on?'on':'')+'" data-preset="'+p.key+'">'+(p.short ? '<span class="lf">'+esc(p.label)+'</span><span class="ls">'+esc(p.short)+'</span>' : esc(p.label))+'</button>';
     }).join('');
+    var pickLabel = state.custom ? state.custom.label : '期間を選ぶ';
+    h += '<button type="button" class="pick'+(state.custom?' on':'')+'" data-pick="1" aria-expanded="'+$('ui').classList.contains('pick-open')+'">'+'<span style="overflow:hidden;text-overflow:ellipsis">'+esc(pickLabel)+'</span></button>';
+    $('periodSegDesk').innerHTML = h; $('periodSegMobile').innerHTML = h;
   }
-  document.getElementById('tabs').addEventListener('click', function(e){
-    var b = e.target.closest('.tab'); if(!b) return;
-    state.p = +b.dataset.i; render();
+  function onTab(e){
+    var b = e.target.closest('button'); if(!b) return;
+    if (b.dataset.pick) { $('ui').classList.toggle('pick-open'); tabs(); return; }
+    state.preset = b.dataset.preset; state.custom = null; state.all = false;
+    $('ui').classList.remove('pick-open'); render();
+  }
+  $('periodSegDesk').addEventListener('click', onTab);
+  $('periodSegMobile').addEventListener('click', onTab);
+
+  /* ============================================================
+     期間を選ぶパネル
+  ============================================================ */
+  var years = []; for (var y = firstJ.y; y <= nowJ.y; y++) years.push(y);
+  $('selYear').innerHTML = years.slice().reverse().map(function(y){return '<option value="'+y+'">'+y+'年</option>';}).join('');
+  function fillMonths(){
+    var y = +$('selYear').value, h = '';
+    for (var m = 1; m <= 12; m++) {
+      var r = monthRange(y,m);
+      if (r.to <= FIRST || r.from > NOW) continue;
+      h += '<option value="'+m+'">'+m+'月</option>';
+    }
+    $('selMonth').innerHTML = h;
+    if ($('selMonth').options.length) $('selMonth').value = (y===nowJ.y) ? nowJ.m : $('selMonth').options[$('selMonth').options.length-1].value;
+  }
+  $('selYear').addEventListener('change', fillMonths); fillMonths();
+  $('yearChips').innerHTML = years.slice().reverse().map(function(y){
+    var r = yearRange(y), n = lowerBound(r.to) - lowerBound(r.from);
+    return '<button type="button" class="chip" data-y="'+y+'">'+y+'年<small>'+fmt(n)+'回</small></button>';
+  }).join('');
+  function isoDate(t){var j=jst(t);return j.y+'-'+String(j.m).padStart(2,'0')+'-'+String(j.d).padStart(2,'0');}
+  $('dFrom').min = $('dTo').min = isoDate(FIRST);
+  $('dFrom').max = $('dTo').max = isoDate(NOW);
+  $('dFrom').value = isoDate(NOW-13*DAY); $('dTo').value = isoDate(NOW);
+  $('pickNote').textContent = '記録があるのは ' + isoDate(FIRST).replace(/-/g,'/') + ' 以降です。';
+
+  $('pickModeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-pm]'); if(!b) return;
+    state.pickMode = b.dataset.pm;
+    [].forEach.call($('pickModeSeg').children, function(x){x.classList.toggle('on', x===b);});
+    [].forEach.call(document.querySelectorAll('.pm'), function(el){
+      el.style.display = el.classList.contains('pm-'+state.pickMode) ? 'contents' : 'none';
+    });
   });
-  document.getElementById('main').addEventListener('click', function(e){
-    var b = e.target.closest('[data-mode]'); if(!b) return;
-    state.mode = b.dataset.mode; render();
+  function applyCustom(r){ state.custom = r; state.all = false; $('ui').classList.remove('pick-open'); render(); window.scrollTo({top:0,behavior:'smooth'}); }
+  $('applyMonth').addEventListener('click', function(){ applyCustom(monthRange(+$('selYear').value, +$('selMonth').value)); });
+  $('yearChips').addEventListener('click', function(e){ var b=e.target.closest('[data-y]'); if(b) applyCustom(yearRange(+b.dataset.y)); });
+  $('applyRange').addEventListener('click', function(){
+    var f = $('dFrom').value, t = $('dTo').value; if (!f || !t) return;
+    if (f > t) { var x=f; f=t; t=x; }
+    var fp = f.split('-').map(Number), tp = t.split('-').map(Number);
+    applyCustom({label: fp[1]+'/'+fp[2]+'〜'+tp[1]+'/'+tp[2] + (fp[0]!==tp[0] || fp[0]!==nowJ.y ? '（'+fp[0]+(fp[0]!==tp[0]?'〜'+tp[0]:'')+'）' : ''),
+      from: jstStart(fp[0],fp[1],fp[2]), to: jstStart(tp[0],tp[1],tp[2]) + DAY, kind:'range'});
+  });
+
+  /* ============================================================
+     表示
+  ============================================================ */
+  $('wave').innerHTML = [34,58,42,76,52,88,64,100,70,54,80,46,62,38].map(function(v){return '<i style="height:'+v+'%"></i>';}).join('');
+  $('modeSeg').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-mode]'); if(!b) return;
+    state.mode = b.dataset.mode; state.all = false;
+    [].forEach.call($('modeSeg').children, function(x){x.classList.toggle('on', x===b);});
+    render();
+  });
+  $('moreBtn').addEventListener('click', function(){
+    state.all = !state.all; render();
+    if (!state.all) $('rankCard').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+  $('monthlyTable').addEventListener('click', function(e){
+    var tr = e.target.closest('tr[data-y]'); if(!tr) return;
+    applyCustom(monthRange(+tr.dataset.y, +tr.dataset.m));
   });
 
   function render(){
-    renderTabs();
-    var p = D.periods[state.p];
-    var h = '<div class="stats">'
-      + '<div class="stat"><b>'+fmt(p.total)+'</b><span>回再生</span></div>'
-      + '<div class="stat"><b>'+fmt(p.minutes)+'</b><span>分（目安）</span></div></div>';
-    if(!p.total){
-      document.getElementById('main').innerHTML = h + '<p class="empty">この期間の記録はまだありません</p>';
+    tabs();
+    var R = currentRange(), p = aggregate(R.from, R.to);
+    $('sumTitle').textContent = R.label + 'のサマリー';
+    var isSong = state.mode==='songs';
+    $('rankTitle').textContent = R.label + 'の' + (isSong ? 'トップソング' : 'トップアーティスト');
+
+    if (!p.total) {
+      $('sumPlays').innerHTML = '0<small>回</small>'; $('sumMinutes').textContent = 'この期間の記録はありません';
+      $('sumSongs').innerHTML = $('sumArtists').innerHTML = $('sumDaily').innerHTML = '―';
+      $('sumSongsDaily').textContent = $('sumArtistsDaily').textContent = '';
+      $('pcards').innerHTML = '';
+      $('rankList').innerHTML = '<li class="empty">この期間の記録はありません。上の「期間を選ぶ」から別の期間を選んでください。</li>';
+      $('moreBtn').style.display = 'none'; $('monthlyCard').style.display = 'none';
       return;
     }
-    var isSong = state.mode === 'songs';
-    var items = isSong ? p.songs : p.artists;
-    var top = items[0];
-    h += '<div class="hero">' + art(top.img, isSong ? top.t : top.n, isSong ? '' : 'round')
-      + '<div class="meta"><div class="no1">NO.1 ' + (isSong ? 'SONG' : 'ARTIST') + '</div>'
-      + '<div class="name">'+esc(isSong ? top.t : top.n)+'</div>'
-      + (isSong ? '<div class="by">'+esc(top.a)+'</div>' : '')
-      + '<div class="cnt">'+fmt(top.c)+'回 · '+fmt(top.m)+'分</div></div></div>';
-    h += '<div class="seg"><button data-mode="songs" class="'+(isSong?'on':'')+'">曲</button>'
-      + '<button data-mode="artists" class="'+(!isSong?'on':'')+'">アーティスト</button></div>';
-    var max = top.c;
-    h += '<div class="list">' + items.map(function(it,i){
+    $('sumPlays').innerHTML = fmt(p.total) + '<small>回</small>';
+    $('sumMinutes').textContent = '合計 約' + hm(p.minutes) + '（' + fmt(p.minutes) + '分）';
+    $('sumSongs').innerHTML = fmt(p.songs.length) + '<small>曲</small>';
+    $('sumArtists').innerHTML = fmt(p.artists.length) + '<small>組</small>';
+    function perDay(n){ var v = n / p.days; return v >= 10 ? '約' + Math.round(v) : '約' + (Math.round(v*10)/10); }
+    $('sumSongsDaily').textContent = '1日平均 ' + perDay(p.songDays) + '曲';
+    $('sumArtistsDaily').textContent = '1日平均 ' + perDay(p.artistDays) + '組';
+    $('sumDaily').innerHTML = fmt(Math.round(p.minutes / p.days)) + '<small>分</small>';
+
+    var s = p.songs[0], a = p.artists[0];
+    $('pcards').innerHTML =
+      '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップソング</div>'
+      + '<div class="pbody">'+art(s.t,'lg',s.img)+'<div style="min-width:0"><div class="pname">'+esc(s.t)+'</div><div class="psub">'+esc(s.a)+'</div></div></div>'
+      + '<div class="pcount">'+fmt(s.c)+'<small>回</small></div></div>'
+      + '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップアーティスト</div>'
+      + '<div class="pbody">'+art(a.n,'lg round',a.img)+'<div style="min-width:0"><div class="pname">'+esc(a.n)+'</div><div class="psub">'+fmt(a.m)+'分</div></div></div>'
+      + '<div class="pcount">'+fmt(a.c)+'<small>回</small></div></div>';
+
+    var items = isSong ? p.songs : p.artists, max = items[0].c;
+    $('rankList').innerHTML = (state.all ? items : items.slice(0,TOP)).map(function(it,i){
       var name = isSong ? it.t : it.n;
-      return '<div class="row"><div class="rank">'+(i+1)+'</div>'
-        + art(it.img, name, isSong ? '' : 'round')
+      return '<li class="rk'+(i<3?' top':'')+'"><div class="no">'+(i+1)+'</div>'
+        + art(name, isSong?'':'round', it.img)
         + '<div class="meta"><div class="t">'+esc(name)+'</div>'
         + (isSong ? '<div class="a">'+esc(it.a)+'</div>' : '')
         + '<div class="bar"><i style="width:'+(it.c/max*100).toFixed(1)+'%"></i></div></div>'
-        + '<div class="num"><b>'+fmt(it.c)+'</b><span>回</span></div></div>';
-    }).join('') + '</div>';
-    if(p.key === 'year' && D.monthly && D.monthly.length){
-      h += '<h2>月ごとの1位</h2><div class="list">' + D.monthly.map(function(m){
-        return '<div class="row"><div class="rank" style="width:36px">'+esc(m.month)+'</div>'
-          + art(m.img, m.t, '')
-          + '<div class="meta"><div class="t">'+esc(m.t)+'</div><div class="a">'+esc(m.a)+'</div></div>'
-          + '<div class="num"><b>'+fmt(m.c)+'</b><span>回</span></div></div>';
-      }).join('') + '</div>';
+        + '<div class="cnt"><b>'+fmt(it.c)+'</b><small>回</small><span class="min">'+fmt(it.m)+'分</span></div></li>';
+    }).join('');
+    var unit = isSong ? '曲' : '組';
+    $('moreBtn').style.display = items.length > TOP ? '' : 'none';
+    $('moreBtn').textContent = state.all ? TOP + '位までに戻す' : 'すべて表示（全' + fmt(items.length) + unit + '）';
+
+    // 月ごとの1位：年・全期間・60日以上の期間のとき表示。行を押すとその月へ
+    var showMonthly = R.kind==='year' || R.kind==='all' || (R.kind==='range' && R.to-R.from > 60*DAY);
+    $('monthlyCard').style.display = showMonthly ? '' : 'none';
+    if (showMonthly) {
+      var from = Math.max(R.from, FIRST), to = Math.min(R.to, NOW), rows = [];
+      var j = jst(from), y = j.y, m = j.m;
+      while (jstStart(y,m) < to) {
+        var mr = monthRange(y,m), ag = aggregate(Math.max(mr.from,R.from), Math.min(mr.to,R.to));
+        if (ag.total) rows.push({y:y, m:m, s:ag.songs[0], total:ag.total});
+        m++; if (m>12) { m=1; y++; }
+      }
+      rows.reverse();
+      $('monthlyTitle').textContent = R.label + ' 月ごとの1位';
+      $('monthlyTable').innerHTML = '<thead><tr><th>月</th><th>曲</th><th style="text-align:right">回数</th></tr></thead><tbody>'
+        + rows.map(function(r){
+          var ml = (R.kind==='year') ? r.m+'月' : r.y+'年'+r.m+'月';
+          return '<tr class="jump" data-y="'+r.y+'" data-m="'+r.m+'" title="'+r.y+'年'+r.m+'月を表示"><td class="m">'+ml+'</td><td><div class="song">'+art(r.s.t)+'<div>'+esc(r.s.t)+'<small>'+esc(r.s.a)+'</small></div></div></td><td class="r">'+r.s.c+'</td></tr>';
+        }).join('') + '</tbody>';
     }
-    document.getElementById('main').innerHTML = h;
+  }
+  function stamp(t){ if (t == null) return '―'; var d = new Date(t + 9*3600000);
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0'); }
+  $('stChecked').textContent = stamp(RAW.checked || null);
+  $('stLast').textContent = stamp(LAST_PLAY);
+  if (RAW.checked) {
+    var late = NOW - RAW.checked > 3*3600000;
+    $('stNext').textContent = late ? '確認が止まっている可能性があります' : '1時間以内';
+    if (late) { $('stNext').style.color = '#c95000'; $('stChecked').classList.remove('live'); }
   }
   render();
 })();
