@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data" / "plays.csv"
-FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms"]
+FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image"]
 
 
 def get_access_token():
@@ -60,6 +60,34 @@ def fetch_recent(token):
         sys.exit(f"再生履歴の取得エラー ({e.code}): {e.read().decode('utf-8', 'replace')}")
 
 
+def migrate_header():
+    """古い形式（image列なし）のCSVを新しい形式に変換する"""
+    if not CSV_PATH.exists():
+        return
+    with CSV_PATH.open(newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        fields = reader.fieldnames or []
+    if fields == FIELDS:
+        return
+    with CSV_PATH.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k) or "" for k in FIELDS})
+
+
+def pick_image(album):
+    imgs = (album or {}).get("images") or []
+    if not imgs:
+        return ""
+    imgs = sorted(imgs, key=lambda i: i.get("width") or 0)
+    for i in imgs:
+        if (i.get("width") or 0) >= 200:
+            return i.get("url", "")
+    return imgs[-1].get("url", "")
+
+
 def load_seen():
     if not CSV_PATH.exists():
         return set()
@@ -70,6 +98,7 @@ def load_seen():
 def main():
     token = get_access_token()
     items = fetch_recent(token)
+    migrate_header()
     seen = load_seen()
 
     new_rows = []
@@ -89,6 +118,7 @@ def main():
             "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
             "album": (t.get("album") or {}).get("name", ""),
             "duration_ms": t.get("duration_ms", 0),
+            "image": pick_image(t.get("album")),
         })
 
     if not new_rows:
