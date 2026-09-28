@@ -245,7 +245,8 @@ button{font-family:inherit;}
   width:28px;height:28px;line-height:28px;border-radius:9px;justify-self:center;
   background:var(--corp-pale);color:var(--corp-ink);font-size:14px;
 }
-.rk.top:first-child .no{background:var(--corp);color:var(--on-corp);}
+.rk.first .no{background:var(--corp);color:var(--on-corp);}
+.pcard .tie{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:600;color:var(--text-sub);}
 .rk .meta{min-width:0;}
 .rk .t{font-size:14px;font-weight:700;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rk .a{font-size:12px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -702,9 +703,14 @@ body.modal-lock{overflow:hidden;}
   function jstStart(y,m,d){return Date.UTC(y,m-1,d||1) - 9*3600000;}
   function lowerBound(t){var lo=0,hi=PLAYS.length;while(lo<hi){var mid=(lo+hi)>>1;if(PLAYS[mid][0]<t)lo=mid+1;else hi=mid;}return lo;}
 
+  // 並び順：再生回数の多い順。同じ回数は同率順位（1位,1位,3位…）とし、表示の並びは最近聴いた順
+  function byCount(x,y){ return y.c - x.c || y.last - x.last; }
+  function rankUp(list){ for (var i = 0; i < list.length; i++) list[i].rank = (i && list[i].c === list[i-1].c) ? list[i-1].rank : i + 1; }
+  function tiedTop(list){ var n = 0; while (n < list.length && list[n].rank === 1) n++; return n; }
+
   function aggregate(from, to){
     var a = lowerBound(from), b = lowerBound(to);
-    var sc = {}, ac = {}, total = 0, minutes = 0;
+    var sc = {}, sl = {}, ac = {}, total = 0, minutes = 0;
     var dayKey = -1, daySongs = {}, dayArtists = {}, songDays = 0, artistDays = 0;
     for (var i = a; i < b; i++) {
       var idx = PLAYS[i][1], sg = SONGS[idx]; if (!sg) continue;
@@ -712,20 +718,21 @@ body.modal-lock{overflow:hidden;}
       if (dk !== dayKey) { dayKey = dk; daySongs = {}; dayArtists = {}; }
       if (!daySongs[idx]) { daySongs[idx] = 1; songDays++; }
       total++; minutes += sg.min;
-      sc[idx] = (sc[idx]||0) + 1;
+      sc[idx] = (sc[idx]||0) + 1; sl[idx] = PLAYS[i][0];
       sg.a.split(' / ').forEach(function(n){
         if (!n) return;
         if (!dayArtists[n]) { dayArtists[n] = 1; artistDays++; }
-        ac[n] = ac[n] || {n:n,c:0,m:0,top:{}}; ac[n].c++; ac[n].m += sg.min; ac[n].top[idx] = (ac[n].top[idx]||0) + 1;
+        ac[n] = ac[n] || {n:n,c:0,m:0,top:{},last:0}; ac[n].c++; ac[n].m += sg.min; ac[n].last = PLAYS[i][0]; ac[n].top[idx] = (ac[n].top[idx]||0) + 1;
       });
     }
-    var songs = Object.keys(sc).map(function(k){var sg=SONGS[k];return {t:sg.t,a:sg.a,c:sc[k],m:Math.round(sc[k]*sg.min),img:sg.img};})
-      .sort(function(x,y){return y.c-x.c || y.m-x.m;});
+    var songs = Object.keys(sc).map(function(k){var sg=SONGS[k];return {t:sg.t,a:sg.a,c:sc[k],m:Math.round(sc[k]*sg.min),img:sg.img,last:sl[k]};})
+      .sort(byCount);
     var artists = Object.keys(ac).map(function(k){
       var o = ac[k], img = ARTIST_IMG[k] || '';
       if (!img) { var best = Object.keys(o.top).sort(function(x,y){return o.top[y]-o.top[x];}); for (var q=0;q<best.length;q++){ if (SONGS[best[q]].img){ img = SONGS[best[q]].img; break; } } }
-      return {n:o.n, c:o.c, m:Math.round(o.m), img:img};
-    }).sort(function(x,y){return y.c-x.c || y.m-x.m;});
+      return {n:o.n, c:o.c, m:Math.round(o.m), img:img, last:o.last};
+    }).sort(byCount);
+    rankUp(songs); rankUp(artists);
     var first = Math.max(from, PLAYS.length ? PLAYS[0][0] : from), last = Math.min(to, NOW);
     var days = Math.max(1, Math.ceil((last - first) / DAY));
     return {songs:songs, artists:artists, total:total, minutes:Math.round(minutes), days:days, songDays:songDays, artistDays:artistDays};
@@ -863,19 +870,23 @@ body.modal-lock{overflow:hidden;}
     $('sumArtistsDaily').textContent = '1日平均 ' + perDay(p.artistDays) + '組';
     $('sumDaily').innerHTML = fmt(Math.round(p.minutes / p.days)) + '<small>分</small>';
 
-    var s = p.songs[0], a = p.artists[0];
+    var s = p.songs[0], a = p.artists[0], ts = tiedTop(p.songs), ta = tiedTop(p.artists);
+    function tieNote(n, unit){ return n > 1 ? '<span class="tie">同率1位 ほか' + (n-1) + unit + '</span>' : ''; }
     $('pcards').innerHTML =
-      '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップソング</div>'
+      '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップソング'+tieNote(ts,'曲')+'</div>'
       + '<div class="pbody">'+art(s.t,'lg',s.img)+'<div style="min-width:0"><div class="pname">'+esc(s.t)+'</div><div class="psub">'+esc(s.a)+'</div></div></div>'
       + '<div class="pcount">'+fmt(s.c)+'<small>回</small></div></div>'
-      + '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップアーティスト</div>'
+      + '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップアーティスト'+tieNote(ta,'組')+'</div>'
       + '<div class="pbody">'+art(a.n,'lg round',a.img)+'<div style="min-width:0"><div class="pname">'+esc(a.n)+'</div><div class="psub">'+fmt(a.m)+'分</div></div></div>'
       + '<div class="pcount">'+fmt(a.c)+'<small>回</small></div></div>';
 
     var items = isSong ? p.songs : p.artists, max = items[0].c;
-    $('rankList').innerHTML = (state.all ? items : items.slice(0,TOP)).map(function(it,i){
+    // 20位までを表示（20位と同率の曲も含める。ただし同率が多すぎるときは30件で区切る）
+    var shown = items.filter(function(it){ return it.rank <= TOP; });
+    if (shown.length > TOP + 10) shown = items.slice(0, TOP);
+    $('rankList').innerHTML = (state.all ? items : shown).map(function(it,i){
       var name = isSong ? it.t : it.n;
-      return '<li class="rk'+(i<3?' top':'')+'"><div class="no">'+(i+1)+'</div>'
+      return '<li class="rk'+(it.rank<=3?' top':'')+(it.rank===1?' first':'')+'"><div class="no">'+it.rank+'</div>'
         + art(name, isSong?'':'round', it.img)
         + '<div class="meta"><div class="t">'+esc(name)+'</div>'
         + (isSong ? '<div class="a">'+esc(it.a)+'</div>' : '')
@@ -883,7 +894,7 @@ body.modal-lock{overflow:hidden;}
         + '<div class="cnt"><b>'+fmt(it.c)+'</b><small>回</small><span class="min">'+fmt(it.m)+'分</span></div></li>';
     }).join('');
     var unit = isSong ? '曲' : '組';
-    $('moreBtn').style.display = items.length > TOP ? '' : 'none';
+    $('moreBtn').style.display = items.length > shown.length ? '' : 'none';
     $('moreBtn').textContent = state.all ? TOP + '位までに戻す' : 'すべて表示（全' + fmt(items.length) + unit + '）';
 
     // 月ごとの1位：年・全期間・60日以上の期間のとき表示。行を押すとその月へ
@@ -894,7 +905,7 @@ body.modal-lock{overflow:hidden;}
       var j = jst(from), y = j.y, m = j.m;
       while (jstStart(y,m) < to) {
         var mr = monthRange(y,m), ag = aggregate(Math.max(mr.from,R.from), Math.min(mr.to,R.to));
-        if (ag.total) rows.push({y:y, m:m, s:ag.songs[0], total:ag.total});
+        if (ag.total) rows.push({y:y, m:m, s:ag.songs[0], tie:tiedTop(ag.songs), total:ag.total});
         m++; if (m>12) { m=1; y++; }
       }
       rows.reverse();
@@ -902,7 +913,7 @@ body.modal-lock{overflow:hidden;}
       $('monthlyTable').innerHTML = '<thead><tr><th>月</th><th>曲</th><th style="text-align:right">回数</th></tr></thead><tbody>'
         + rows.map(function(r){
           var ml = (R.kind==='year') ? r.m+'月' : r.y+'年'+r.m+'月';
-          return '<tr class="jump" data-y="'+r.y+'" data-m="'+r.m+'" title="'+r.y+'年'+r.m+'月を表示"><td class="m">'+ml+'</td><td><div class="song">'+art(r.s.t)+'<div>'+esc(r.s.t)+'<small>'+esc(r.s.a)+'</small></div></div></td><td class="r">'+r.s.c+'</td></tr>';
+          return '<tr class="jump" data-y="'+r.y+'" data-m="'+r.m+'" title="'+r.y+'年'+r.m+'月を表示"><td class="m">'+ml+'</td><td><div class="song">'+art(r.s.t,'',r.s.img)+'<div>'+esc(r.s.t)+'<small>'+esc(r.s.a)+(r.tie>1?'（同率1位 ほか'+(r.tie-1)+'曲）':'')+'</small></div></div></td><td class="r">'+r.s.c+'</td></tr>';
         }).join('') + '</tbody>';
     }
   }
