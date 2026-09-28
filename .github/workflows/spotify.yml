@@ -1,0 +1,42 @@
+name: Spotify再生記録
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # 毎時17分ごろに実行
+  workflow_dispatch:        # 手動実行ボタン
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spotify-log
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 再生履歴を取得
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: python3 scripts/fetch.py
+
+      - name: ランキングを作成
+        run: python3 scripts/build_report.py
+
+      - name: 保存（コミット）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data README.md
+          if git diff --cached --quiet; then
+            echo "変更なし"
+          else
+            git commit -m "再生履歴を更新"
+            git push
+          fi
