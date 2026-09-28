@@ -1,241 +1,199 @@
-# 🎧 Spotify 再生記録
+# 🎧 My Listening Log
 
-📱 **専用ページ：https://arashi-oym.github.io/spotify-log/**
+Spotifyで聴いた曲を自動で記録して、Apple Musicの「Replay」のようなランキングを見られるしくみです。
 
-最終記録：2026-09-28 23:40（日本時間）
+**📱 専用ページ：https://arashi-oym.github.io/spotify-log/**
 
-## 直近7日間（54回再生・約186分）
+- [ふだんの使い方](#ふだんの使い方)
+- [正常に動いているかの確かめ方](#正常に動いているかの確かめ方)
+- [止まったときの直し方](#止まったときの直し方)
+- [半年に一度やること](#半年に一度やること)
+- [再認証commandが開けないとき](#再認証commandが開けないとき)
+- [しくみの全体像](#しくみの全体像)
+- [大事な注意](#大事な注意)
 
-### トップソング
+---
 
-| # | 曲 | アーティスト | 回数 | 分 |
-|---:|---|---|---:|---:|
-| 1 | Out of My Mind (feat. Nicki Minaj) | B.o.B / Nicki Minaj | 2 | 7 |
-| 2 | %%(Eung Eung) | Apink | 2 | 6 |
-| 3 | BATTER UP (7 ver.) | BABYMONSTER | 2 | 6 |
-| 4 | MOON | BABYMONSTER | 2 | 5 |
-| 5 | All Of The Lights | Kanye West | 1 | 4 |
-| 6 | Barbie Dreams | Nicki Minaj | 1 | 4 |
-| 7 | Clarity | Zedd / Foxes | 1 | 4 |
-| 8 | Anybody (feat. Nicki Minaj) | Young Thug / Nicki Minaj | 1 | 4 |
-| 9 | Whatever You Like | T.I. | 1 | 4 |
-| 10 | Judas | Lady Gaga | 1 | 4 |
-| 11 | Obsessed (feat. Mariah Carey) | Gucci Mane / Mariah Carey | 1 | 4 |
-| 12 | You Know You Like It | DJ Snake / AlunaGeorge | 1 | 4 |
-| 13 | Stuck In The Middle (7 ver.) | BABYMONSTER | 1 | 4 |
-| 14 | Alone (with Nicki Minaj) - Extended | Kim Petras / Nicki Minaj | 1 | 4 |
-| 15 | No Broken Hearts (feat. Nicki Minaj) | Bebe Rexha / Nicki Minaj | 1 | 3 |
-| 16 | Low (feat. Nicki Minaj, Lil Bibby & Young Thug) | Juicy J / Nicki Minaj / Lil Bibby / Young Thug | 1 | 3 |
-| 17 | Wop (Official Version) | J. Dash | 1 | 3 |
-| 18 | Beauty And A Beat | Justin Bieber / Nicki Minaj | 1 | 3 |
-| 19 | Worth It (feat. Kid Ink) | Fifth Harmony / Kid Ink | 1 | 3 |
-| 20 | Being Alive | Hardwell / JGUAR | 1 | 3 |
+## ふだんの使い方
 
-### トップアーティスト
+**専用ページを開くだけです。** 操作は何もいりません。
 
-| # | アーティスト | 回数 | 分 |
-|---:|---|---:|---:|
-| 1 | Nicki Minaj | 16 | 59 |
-| 2 | BABYMONSTER | 13 | 40 |
-| 3 | Apink | 3 | 10 |
-| 4 | Chris Brown | 3 | 8 |
-| 5 | Young Thug | 2 | 8 |
-| 6 | Zedd | 2 | 8 |
-| 7 | B.o.B | 2 | 7 |
-| 8 | Justin Bieber | 2 | 7 |
-| 9 | Jason Derulo | 2 | 6 |
-| 10 | David Guetta | 2 | 6 |
+- 1時間ごとに自動でSpotifyの再生履歴を確認して、ページを最新にします。Macの電源が切れていても動きます
+- 聴いてからページに反映されるまで、最大1時間ほどかかります
+- 表示が古いときは、ページを再読み込みしてください（スマホは画面を下に引っ張る）
 
-## 直近30日間（54回再生・約186分）
+**スマホのホーム画面に置く方法（iPhone）**
+Safariで専用ページを開く →「共有」ボタン →「ホーム画面に追加」
 
-### トップソング
+**期間の切り替え**
+上のボタンで「7日間」「30日間」「今月」「今年」「全期間」を切り替えられます。
+「期間を選ぶ」からは、好きな月・好きな年・好きな日付の範囲を選べます。
 
-| # | 曲 | アーティスト | 回数 | 分 |
-|---:|---|---|---:|---:|
-| 1 | Out of My Mind (feat. Nicki Minaj) | B.o.B / Nicki Minaj | 2 | 7 |
-| 2 | %%(Eung Eung) | Apink | 2 | 6 |
-| 3 | BATTER UP (7 ver.) | BABYMONSTER | 2 | 6 |
-| 4 | MOON | BABYMONSTER | 2 | 5 |
-| 5 | All Of The Lights | Kanye West | 1 | 4 |
-| 6 | Barbie Dreams | Nicki Minaj | 1 | 4 |
-| 7 | Clarity | Zedd / Foxes | 1 | 4 |
-| 8 | Anybody (feat. Nicki Minaj) | Young Thug / Nicki Minaj | 1 | 4 |
-| 9 | Whatever You Like | T.I. | 1 | 4 |
-| 10 | Judas | Lady Gaga | 1 | 4 |
-| 11 | Obsessed (feat. Mariah Carey) | Gucci Mane / Mariah Carey | 1 | 4 |
-| 12 | You Know You Like It | DJ Snake / AlunaGeorge | 1 | 4 |
-| 13 | Stuck In The Middle (7 ver.) | BABYMONSTER | 1 | 4 |
-| 14 | Alone (with Nicki Minaj) - Extended | Kim Petras / Nicki Minaj | 1 | 4 |
-| 15 | No Broken Hearts (feat. Nicki Minaj) | Bebe Rexha / Nicki Minaj | 1 | 3 |
-| 16 | Low (feat. Nicki Minaj, Lil Bibby & Young Thug) | Juicy J / Nicki Minaj / Lil Bibby / Young Thug | 1 | 3 |
-| 17 | Wop (Official Version) | J. Dash | 1 | 3 |
-| 18 | Beauty And A Beat | Justin Bieber / Nicki Minaj | 1 | 3 |
-| 19 | Worth It (feat. Kid Ink) | Fifth Harmony / Kid Ink | 1 | 3 |
-| 20 | Being Alive | Hardwell / JGUAR | 1 | 3 |
-| 21 | What They Say | Zara Larsson | 1 | 3 |
-| 22 | Endless Fashion (feat. Nicki Minaj) | Lil Uzi Vert / Nicki Minaj | 1 | 3 |
-| 23 | Swalla (feat. Nicki Minaj & Ty Dolla $ign) | Jason Derulo / Nicki Minaj / Ty Dolla $ign | 1 | 3 |
-| 24 | Break Free | Ariana Grande / Zedd | 1 | 3 |
-| 25 | Baby | Justin Bieber / Ludacris | 1 | 3 |
-| 26 | Starships | Nicki Minaj | 1 | 3 |
-| 27 | I LIKE IT | BABYMONSTER | 1 | 3 |
-| 28 | TROLLZ | 6ix9ine / Nicki Minaj | 1 | 3 |
-| 29 | Turn Me On (feat. Nicki Minaj) | David Guetta / Nicki Minaj | 1 | 3 |
-| 30 | How We Roll | Ciara / Chris Brown | 1 | 3 |
+---
 
-### トップアーティスト
+## 正常に動いているかの確かめ方
 
-| # | アーティスト | 回数 | 分 |
-|---:|---|---:|---:|
-| 1 | Nicki Minaj | 16 | 59 |
-| 2 | BABYMONSTER | 13 | 40 |
-| 3 | Apink | 3 | 10 |
-| 4 | Chris Brown | 3 | 8 |
-| 5 | Young Thug | 2 | 8 |
-| 6 | Zedd | 2 | 8 |
-| 7 | B.o.B | 2 | 7 |
-| 8 | Justin Bieber | 2 | 7 |
-| 9 | Jason Derulo | 2 | 6 |
-| 10 | David Guetta | 2 | 6 |
-| 11 | Kanye West | 1 | 4 |
-| 12 | Foxes | 1 | 4 |
-| 13 | T.I. | 1 | 4 |
-| 14 | Lady Gaga | 1 | 4 |
-| 15 | Gucci Mane | 1 | 4 |
-| 16 | Mariah Carey | 1 | 4 |
-| 17 | DJ Snake | 1 | 4 |
-| 18 | AlunaGeorge | 1 | 4 |
-| 19 | Kim Petras | 1 | 4 |
-| 20 | Bebe Rexha | 1 | 3 |
+専用ページのいちばん下にある **「記録の状態」** を見てください。
 
-## 9月（54回再生・約186分）
+| 項目 | 正常なとき |
+|---|---|
+| 最終確認 | 1時間以内の時刻になっている（緑の点がついている） |
+| 最後に聴いた曲 | 最後にSpotifyで聴いた時刻（聴いていなければ古いままで正常） |
+| 次の確認 | 「1時間以内」 |
+| 連携の期限 | 日付と「あと○日」が出ている |
 
-### トップソング
+**何か問題が起きると、ページの上部に色のついたお知らせが出ます。** あわせて、GitHubから「Run failed」という件名のメールが届きます。
+お知らせには原因と直し方が書いてあるので、まずはそれに従ってください。
 
-| # | 曲 | アーティスト | 回数 | 分 |
-|---:|---|---|---:|---:|
-| 1 | Out of My Mind (feat. Nicki Minaj) | B.o.B / Nicki Minaj | 2 | 7 |
-| 2 | %%(Eung Eung) | Apink | 2 | 6 |
-| 3 | BATTER UP (7 ver.) | BABYMONSTER | 2 | 6 |
-| 4 | MOON | BABYMONSTER | 2 | 5 |
-| 5 | All Of The Lights | Kanye West | 1 | 4 |
-| 6 | Barbie Dreams | Nicki Minaj | 1 | 4 |
-| 7 | Clarity | Zedd / Foxes | 1 | 4 |
-| 8 | Anybody (feat. Nicki Minaj) | Young Thug / Nicki Minaj | 1 | 4 |
-| 9 | Whatever You Like | T.I. | 1 | 4 |
-| 10 | Judas | Lady Gaga | 1 | 4 |
-| 11 | Obsessed (feat. Mariah Carey) | Gucci Mane / Mariah Carey | 1 | 4 |
-| 12 | You Know You Like It | DJ Snake / AlunaGeorge | 1 | 4 |
-| 13 | Stuck In The Middle (7 ver.) | BABYMONSTER | 1 | 4 |
-| 14 | Alone (with Nicki Minaj) - Extended | Kim Petras / Nicki Minaj | 1 | 4 |
-| 15 | No Broken Hearts (feat. Nicki Minaj) | Bebe Rexha / Nicki Minaj | 1 | 3 |
-| 16 | Low (feat. Nicki Minaj, Lil Bibby & Young Thug) | Juicy J / Nicki Minaj / Lil Bibby / Young Thug | 1 | 3 |
-| 17 | Wop (Official Version) | J. Dash | 1 | 3 |
-| 18 | Beauty And A Beat | Justin Bieber / Nicki Minaj | 1 | 3 |
-| 19 | Worth It (feat. Kid Ink) | Fifth Harmony / Kid Ink | 1 | 3 |
-| 20 | Being Alive | Hardwell / JGUAR | 1 | 3 |
+---
 
-### トップアーティスト
+## 止まったときの直し方
 
-| # | アーティスト | 回数 | 分 |
-|---:|---|---:|---:|
-| 1 | Nicki Minaj | 16 | 59 |
-| 2 | BABYMONSTER | 13 | 40 |
-| 3 | Apink | 3 | 10 |
-| 4 | Chris Brown | 3 | 8 |
-| 5 | Young Thug | 2 | 8 |
-| 6 | Zedd | 2 | 8 |
-| 7 | B.o.B | 2 | 7 |
-| 8 | Justin Bieber | 2 | 7 |
-| 9 | Jason Derulo | 2 | 6 |
-| 10 | David Guetta | 2 | 6 |
+ページ上部のお知らせの **見出し** を見て、下の該当する項目の手順を行ってください。
 
-## 2026年（54回再生・約186分）
+| お知らせの見出し | 原因 | やること |
+|---|---|---|
+| Spotifyとの連携が切れています | 連携の期限切れ（いちばん多い） | [A. 再認証](#a-再認証いちばんよくある直し方) |
+| Spotifyとの連携の期限が近づいています | もうすぐ期限切れ | [A. 再認証](#a-再認証いちばんよくある直し方) |
+| Spotifyのアプリ情報が正しくありません | Client ID／Secretの不一致 | [B](#b-spotifyのアプリ情報が正しくありません) |
+| Spotifyにアクセスを拒否されました | Premium切れなど | [C](#c-spotifyにアクセスを拒否されました) |
+| Spotifyに接続できない状態が続いています | Spotify側の一時的な不具合 | [D](#d-spotifyに接続できない状態が続いています) |
+| 自動の確認が止まっているようです | GitHubの自動実行が止まった | [E](#e-自動の確認が止まっているようです) |
+| （ページ自体が開かない・404） | ページの公開設定 | [F](#f-ページが開かない404と出る) |
 
-### トップソング
+### A. 再認証（いちばんよくある直し方）
 
-| # | 曲 | アーティスト | 回数 | 分 |
-|---:|---|---|---:|---:|
-| 1 | Out of My Mind (feat. Nicki Minaj) | B.o.B / Nicki Minaj | 2 | 7 |
-| 2 | %%(Eung Eung) | Apink | 2 | 6 |
-| 3 | BATTER UP (7 ver.) | BABYMONSTER | 2 | 6 |
-| 4 | MOON | BABYMONSTER | 2 | 5 |
-| 5 | All Of The Lights | Kanye West | 1 | 4 |
-| 6 | Barbie Dreams | Nicki Minaj | 1 | 4 |
-| 7 | Clarity | Zedd / Foxes | 1 | 4 |
-| 8 | Anybody (feat. Nicki Minaj) | Young Thug / Nicki Minaj | 1 | 4 |
-| 9 | Whatever You Like | T.I. | 1 | 4 |
-| 10 | Judas | Lady Gaga | 1 | 4 |
-| 11 | Obsessed (feat. Mariah Carey) | Gucci Mane / Mariah Carey | 1 | 4 |
-| 12 | You Know You Like It | DJ Snake / AlunaGeorge | 1 | 4 |
-| 13 | Stuck In The Middle (7 ver.) | BABYMONSTER | 1 | 4 |
-| 14 | Alone (with Nicki Minaj) - Extended | Kim Petras / Nicki Minaj | 1 | 4 |
-| 15 | No Broken Hearts (feat. Nicki Minaj) | Bebe Rexha / Nicki Minaj | 1 | 3 |
-| 16 | Low (feat. Nicki Minaj, Lil Bibby & Young Thug) | Juicy J / Nicki Minaj / Lil Bibby / Young Thug | 1 | 3 |
-| 17 | Wop (Official Version) | J. Dash | 1 | 3 |
-| 18 | Beauty And A Beat | Justin Bieber / Nicki Minaj | 1 | 3 |
-| 19 | Worth It (feat. Kid Ink) | Fifth Harmony / Kid Ink | 1 | 3 |
-| 20 | Being Alive | Hardwell / JGUAR | 1 | 3 |
-| 21 | What They Say | Zara Larsson | 1 | 3 |
-| 22 | Endless Fashion (feat. Nicki Minaj) | Lil Uzi Vert / Nicki Minaj | 1 | 3 |
-| 23 | Swalla (feat. Nicki Minaj & Ty Dolla $ign) | Jason Derulo / Nicki Minaj / Ty Dolla $ign | 1 | 3 |
-| 24 | Break Free | Ariana Grande / Zedd | 1 | 3 |
-| 25 | Baby | Justin Bieber / Ludacris | 1 | 3 |
-| 26 | Starships | Nicki Minaj | 1 | 3 |
-| 27 | I LIKE IT | BABYMONSTER | 1 | 3 |
-| 28 | TROLLZ | 6ix9ine / Nicki Minaj | 1 | 3 |
-| 29 | Turn Me On (feat. Nicki Minaj) | David Guetta / Nicki Minaj | 1 | 3 |
-| 30 | How We Roll | Ciara / Chris Brown | 1 | 3 |
-| 31 | PSYCHO | BABYMONSTER | 1 | 3 |
-| 32 | Where Them Girls At (feat. Nicki Minaj & Flo Rida) | David Guetta / Flo Rida / Nicki Minaj | 1 | 3 |
-| 33 | Rise | Jonas Blue / Jack & Jack | 1 | 3 |
-| 34 | It Girl | Jason Derulo | 1 | 3 |
-| 35 | Drop It Low | Ester Dean / Chris Brown | 1 | 3 |
-| 36 | Chun-Li | Nicki Minaj | 1 | 3 |
-| 37 | Like A Star (feat. Nicki Minaj) | Fetty Wap / Nicki Minaj | 1 | 3 |
-| 38 | BATTER UP | BABYMONSTER | 1 | 3 |
-| 39 | WE GO UP | BABYMONSTER | 1 | 3 |
-| 40 | PARTY | Jee Seok Jin / Lee Kwang Soo / Apink | 1 | 3 |
-| 41 | LOCKED IN | BABYMONSTER | 1 | 3 |
-| 42 | DRIP | BABYMONSTER | 1 | 3 |
-| 43 | Sleepless Nights | Armin van Buuren / Martin Garrix / Libby Whitehouse | 1 | 3 |
-| 44 | Options | Loren Gray | 1 | 2 |
-| 45 | SUPA DUPA LUV | BABYMONSTER | 1 | 2 |
-| 46 | CLIK CLAK | BABYMONSTER | 1 | 2 |
-| 47 | Afterglow | Timmy Trumpet / Zen/it / ANYLIA | 1 | 2 |
-| 48 | Uptown Funk | Fleur East | 1 | 2 |
-| 49 | Boy's a liar Pt. 2 | PinkPantheress / Ice Spice | 1 | 2 |
-| 50 | UnLonely | J. Valentine / Chris Brown | 1 | 2 |
+Spotifyとの連携をやり直します。**Macで3分ほど**で終わります。
 
-### トップアーティスト
+1. Macの「spotify-log」フォルダを開き、**「再認証.command」をダブルクリック**
+   - 黒い画面（ターミナル）が開きます
+   - 初回だけ Client ID と Client Secret を聞かれます。[Spotify for Developers](https://developer.spotify.com/dashboard) の「My Listening Log」→「Settings」を開いて、コピーボタンで貼り付けてください。次回からは聞かれません
+   - ダブルクリックしても開けないときは → [再認証commandが開けないとき](#再認証commandが開けないとき)
+2. ブラウザでSpotifyの画面が開くので、**「同意する」** を押す
+3. 新しいトークンが**自動でコピー**され、GitHubの設定画面が**自動で開きます**
+   - 大きな入力欄をクリックして **⌘+V（貼り付け）**
+   - 緑の **「Update secret」** を押す
+4. 完了です。1時間以内に自動で記録が再開します
+   - すぐ確かめたいときは、GitHubの「Actions」→「Spotify再生記録」→「Run workflow」を押し、緑のチェック ✅ になればOKです
 
-| # | アーティスト | 回数 | 分 |
-|---:|---|---:|---:|
-| 1 | Nicki Minaj | 16 | 59 |
-| 2 | BABYMONSTER | 13 | 40 |
-| 3 | Apink | 3 | 10 |
-| 4 | Chris Brown | 3 | 8 |
-| 5 | Young Thug | 2 | 8 |
-| 6 | Zedd | 2 | 8 |
-| 7 | B.o.B | 2 | 7 |
-| 8 | Justin Bieber | 2 | 7 |
-| 9 | Jason Derulo | 2 | 6 |
-| 10 | David Guetta | 2 | 6 |
-| 11 | Kanye West | 1 | 4 |
-| 12 | Foxes | 1 | 4 |
-| 13 | T.I. | 1 | 4 |
-| 14 | Lady Gaga | 1 | 4 |
-| 15 | Gucci Mane | 1 | 4 |
-| 16 | Mariah Carey | 1 | 4 |
-| 17 | DJ Snake | 1 | 4 |
-| 18 | AlunaGeorge | 1 | 4 |
-| 19 | Kim Petras | 1 | 4 |
-| 20 | Bebe Rexha | 1 | 3 |
+> 止まっていた間の再生も、**直近50曲分まではさかのぼって記録されます**。それより前の分は記録されないので、お知らせが出たら早めに直すのがおすすめです。
 
-## 2026年 月ごとの1位
+### B. Spotifyのアプリ情報が正しくありません
 
-| 月 | 曲 | アーティスト | 回数 |
-|---:|---|---|---:|
-| 9月 | Out of My Mind (feat. Nicki Minaj) | B.o.B / Nicki Minaj | 2 |
+GitHubに登録した Client ID か Client Secret が間違っています。
 
-※「分」は曲の長さ×回数の目安です。
+1. [Spotify for Developers](https://developer.spotify.com/dashboard) →「My Listening Log」→「Settings」を開く
+2. GitHubのこのリポジトリで「Settings」→「Secrets and variables」→「Actions」を開く
+3. `SPOTIFY_CLIENT_ID` の鉛筆アイコン → Spotifyの画面の Client ID を**コピーボタンで**コピーして貼り付け →「Update secret」
+4. `SPOTIFY_CLIENT_SECRET` も同じように（Spotifyの「View client secret」から）
+5. 「Actions」→「Run workflow」で確認
+
+Spotifyの画面で Client Secret を作り直した（「Rotate」を押した）場合もこの手順です。そのあと、Macの再認証で聞かれたときも新しい値を入力してください。
+
+### C. Spotifyにアクセスを拒否されました
+
+1. **Spotify Premium の契約が続いているか**確認してください。このしくみはPremiumでないと動きません（再加入すれば自動で戻ります）
+2. [Spotify for Developers](https://developer.spotify.com/dashboard) →「My Listening Log」→「User Management」に、自分の名前とSpotifyのメールアドレスが登録されているか確認し、なければ追加
+3. それでも直らなければ、[A. 再認証](#a-再認証いちばんよくある直し方) を行う
+
+### D. Spotifyに接続できない状態が続いています
+
+Spotify側の一時的な不具合のことがほとんどで、**何もしなくても自動で直ります**。
+1日以上続くときは、[A. 再認証](#a-再認証いちばんよくある直し方) を試してください。
+
+### E. 自動の確認が止まっているようです
+
+GitHubの自動実行が止まっている状態です。
+
+1. このリポジトリの **「Actions」** タブを開く
+2. 画面上部に黄色い帯と **「Enable workflow」** ボタンがあれば押す
+3. 左の「Spotify再生記録」→「Run workflow」を押し、緑のチェック ✅ になるか確認
+4. 赤い ❌ になった場合は、その行を押して「record」→ 赤くなっている段階を開き、表示されたメッセージを確認
+
+### F. ページが開かない（404と出る）
+
+1. このリポジトリの「Settings」→ 左メニュー「Pages」を開く
+2. 「Branch」が **main** と **/docs** になっているか確認し、違えば直して「Save」
+3. リポジトリ名の横が **Public** になっているか確認（Privateだと無料プランではページを公開できません）
+
+### それでも直らないとき
+
+Claudeなどに相談するときは、次の3つのスクリーンショットを見せると原因がすぐわかります。
+**Client Secret やトークンが写っていないか、必ず確認してから送ってください。**
+
+1. 専用ページの上部のお知らせと、下の「記録の状態」
+2. GitHubの「Actions」の一覧画面
+3. 失敗した実行 →「record」→「再生履歴を取得」を開いた画面
+
+---
+
+## 半年に一度やること
+
+Spotifyの決まりで、連携は **発行から約180日で期限切れ** になります。
+
+- 期限の目安は、専用ページの「記録の状態」→「連携の期限」に表示されます
+- **期限の2週間前から、ページ上部にお知らせが出ます**
+- お知らせが出たら、[A. 再認証](#a-再認証いちばんよくある直し方) を行ってください（期限前にやれば、記録は途切れません）
+
+---
+
+## 再認証.commandが開けないとき
+
+**「開発元を確認できないため開けません」と出た場合**（初回だけ）
+
+- macOS 15（Sequoia）以降：「システム設定」→「プライバシーとセキュリティ」→ 下のほうにある「"再認証.command"は…」の **「このまま開く」** を押す → もう一度ダブルクリック
+- それより前のmacOS：ファイルを **右クリック →「開く」→「開く」**
+
+**「アクセス権がありません」と出た場合、またはどうしても開けない場合**
+
+ターミナル（Spotlightで「ターミナル」と検索）を開き、次の2行を順に貼り付けて Enter を押してください。
+（1行目はフォルダの場所です。「書類」以外に置いている場合は、`cd ` のあとにフォルダをドラッグ＆ドロップすると場所が入力されます）
+
+```
+cd ~/Documents/spotify-log
+python3 scripts/auth.py
+```
+
+---
+
+## しくみの全体像
+
+```
+ Spotify ──(1時間ごとに再生履歴を確認)──▶ GitHub Actions
+                                            │
+                                            ├─ data/ に記録を追加して保存
+                                            └─ docs/index.html（専用ページ）を作り直す
+                                                      │
+                                   GitHub Pages で公開 ▼
+                                         スマホ・PCで見る
+```
+
+### ファイルの説明
+
+| 場所 | 中身 | さわっていいか |
+|---|---|---|
+| `data/plays.csv` | 再生の記録そのもの | ❌ 消さない（消すと記録がなくなります） |
+| `data/artists.json` | アーティスト写真の情報 | ❌ |
+| `data/status.json` | 最後に確認した時刻・エラーの内容 | ❌ |
+| `docs/` | 専用ページ（自動で作られる） | ❌ |
+| `scripts/fetch.py` | Spotifyから再生履歴を取ってくる | 改造するときだけ |
+| `scripts/build_report.py` | 専用ページを作る | 改造するときだけ |
+| `scripts/template.html` | 専用ページのデザイン | 改造するときだけ |
+| `scripts/auth.py` | 再認証のしくみ | 改造するときだけ |
+| `.github/workflows/spotify.yml` | 1時間ごとに動かす設定 | 改造するときだけ |
+
+### Macに置いておくもの
+
+| 場所 | 中身 |
+|---|---|
+| `spotify-log` フォルダ（「書類」に置くのがおすすめ） | 「再認証.command」と scripts。**半年に一度使うので消さないでください** |
+| `~/.spotify-log.json`（見えないファイル） | 再認証用に保存した Client ID と Client Secret |
+
+---
+
+## 大事な注意
+
+- **Client Secret とリフレッシュトークンは、人に見せたり送ったりしないでください。** スクリーンショットを撮るときは写らないように注意してください
+- `data` フォルダは記録そのものなので、消したり編集したりしないでください
+- このリポジトリは公開（Public）です。曲名・アーティスト名・再生日時は誰でも見られる状態ですが、Spotifyのログイン情報などは公開されていません（GitHubのSecretに保管されています）
+- Spotify Premium を解約すると記録が止まります（再加入で自動再開）

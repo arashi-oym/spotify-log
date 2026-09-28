@@ -395,6 +395,27 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
   .status dd{margin-bottom:6px;}
 }
 
+.alert{border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.7;display:flex;gap:11px;align-items:flex-start;border:1px solid;margin-bottom:16px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
+.alert .ico{flex:none;font-size:18px;line-height:1.3;}
+.alert strong{display:block;font-size:14px;margin-bottom:2px;}
+.alert ol{margin:6px 0 0;padding-left:20px;}
+.alert li{margin-bottom:2px;}
+.alert a{color:inherit;font-weight:700;}
+.alert .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.alert .acts a{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:980px;text-decoration:none;font-size:12.5px;border:1.5px solid currentColor;background:rgba(255,255,255,.55);}
+.alert.err{background:rgba(204,0,34,.07);border-color:rgba(204,0,34,.25);color:#8c0018;}
+.alert.warn{background:rgba(201,80,0,.08);border-color:rgba(201,80,0,.25);color:#8a3800;}
+.alert.info{background:var(--corp-pale);border-color:var(--corp-border);color:var(--corp-ink);}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .alert.err{background:rgba(255,80,100,.12);color:#ffb3bf;border-color:rgba(255,80,100,.3);}
+  :root:not([data-theme="light"]) .alert.warn{background:rgba(255,150,60,.12);color:#ffcc99;border-color:rgba(255,150,60,.3);}
+  :root:not([data-theme="light"]) .alert .acts a{background:rgba(0,0,0,.2);}
+}
+:root[data-theme="dark"] .alert.err{background:rgba(255,80,100,.12);color:#ffb3bf;border-color:rgba(255,80,100,.3);}
+:root[data-theme="dark"] .alert.warn{background:rgba(255,150,60,.12);color:#ffcc99;border-color:rgba(255,150,60,.3);}
+.status dd.bad{color:#c95000;}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
@@ -440,6 +461,7 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 </header>
 
 <main class="page">
+  <div id="notice"></div>
   <div class="grid">
 
     <!-- ============================ ランキング ============================ -->
@@ -505,8 +527,9 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
             <dt>最終確認</dt><dd><span class="live" id="stChecked">―</span></dd>
             <dt>最後に聴いた曲</dt><dd id="stLast">―</dd>
             <dt>次の確認</dt><dd id="stNext">―</dd>
+            <dt>連携の期限</dt><dd id="stExpire">―</dd>
           </dl>
-          <p class="hint">Spotifyの再生履歴を1時間ごとに確認して記録しています。プライベートセッション中の再生と30秒未満の再生は記録されません。</p>
+          <p class="hint">Spotifyの再生履歴を1時間ごとに確認して記録しています。連携の期限は約半年ごとに来るので、近づいたらこのページでお知らせします。プライベートセッション中の再生と30秒未満の再生は記録されません。</p>
         </div>
       </section>
     </aside>
@@ -762,13 +785,53 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
   }
   function stamp(t){ if (t == null) return '―'; var d = new Date(t + 9*3600000);
     return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0'); }
-  $('stChecked').textContent = stamp(RAW.checked || null);
+  /* ---------------- 記録の状態とお知らせ ---------------- */
+  var ST = RAW.status || {};
+  var GUIDE = RAW.guide || '#', ACTIONS = RAW.actions || '#';
+  $('stChecked').textContent = stamp(ST.lastSuccess || null);
   $('stLast').textContent = stamp(LAST_PLAY);
-  if (RAW.checked) {
-    var late = NOW - RAW.checked > 3*3600000;
-    $('stNext').textContent = late ? '確認が止まっている可能性があります' : '1時間以内';
-    if (late) { $('stNext').style.color = '#c95000'; $('stChecked').classList.remove('live'); }
+  var notice = '';
+  var FIX = {
+    token_expired: {cls:'err', title:'Spotifyとの連携が切れています', body:'連携の期限（約半年）が来たか、連携が解除されました。Macで次の手順を行うと元に戻ります。',
+      steps:['Macで「spotify-log」フォルダの「再認証.command」をダブルクリック','Spotifyの画面で「同意する」を押す','自動で開くGitHubの画面で ⌘+V を押し、「Update secret」を押す']},
+    bad_client: {cls:'err', title:'Spotifyのアプリ情報が正しくありません', body:'GitHubに登録した Client ID か Client Secret が、Spotifyのものと一致していません。',
+      steps:['Spotify for Developers で Client ID と Client Secret を確認','GitHubの「Settings」→「Secrets and variables」→「Actions」で2つを入れ直す']},
+    forbidden: {cls:'err', title:'Spotifyにアクセスを拒否されました', body:'Spotify Premium の契約が切れているか、Spotify側の設定が変わった可能性があります。',
+      steps:['Spotify Premium の契約が続いているか確認','Spotify for Developers の「User Management」に自分のメールアドレスがあるか確認']},
+    unknown: {cls:'err', title:'記録中に想定していないエラーが起きました', body:'詳しい内容はGitHubのActionsの画面で確認できます。', steps:[]}
+  };
+  function box(cls, ico, title, body, steps, withGuide){
+    return '<div class="alert '+cls+'" role="status"><span class="ico" aria-hidden="true">'+ico+'</span><div><strong>'+esc(title)+'</strong>'+esc(body)
+      + (steps && steps.length ? '<ol>'+steps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol>' : '')
+      + (withGuide ? '<div class="acts"><a href="'+esc(GUIDE)+'" target="_blank" rel="noopener">詳しい直し方を見る</a><a href="'+esc(ACTIONS)+'" target="_blank" rel="noopener">実行の記録（Actions）</a></div>' : '')
+      + '</div></div>';
   }
+  var stale = ST.lastSuccess && NOW - ST.lastSuccess > 3*3600000;
+  if (ST.state === 'error') {
+    var f = FIX[ST.code] || FIX.unknown;
+    notice += box(f.cls, '⚠️', f.title, f.body + (ST.at ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, true);
+    $('stNext').textContent = '直すまで記録が止まります'; $('stNext').classList.add('bad');
+  } else if (ST.state === 'temporary' && stale) {
+    notice += box('warn', '⏳', 'Spotifyに接続できない状態が続いています', 'Spotify側の一時的な不具合のことが多く、ふつうは自動で直ります。1日以上続く場合は、詳しい直し方を確認してください。', [], true);
+  } else if (stale) {
+    notice += box('warn', '⏸️', '自動の確認が止まっているようです', '最後に確認できたのは ' + stamp(ST.lastSuccess) + ' です。GitHubの自動実行が止まっている可能性があります。', ['「実行の記録（Actions）」を開く','黄色い帯に「Enable workflow」ボタンがあれば押す','「Run workflow」を押して、緑のチェックになるか確認'], true);
+  }
+  if (!stale && ST.state !== 'error') $('stNext').textContent = '1時間以内';
+  if (stale) { $('stChecked').classList.remove('live'); $('stNext').textContent = '止まっています'; $('stNext').classList.add('bad'); }
+
+  // 連携の期限（連携を始めた日から約180日）
+  if (ST.tokenSince) {
+    var p2 = ST.tokenSince.split('-').map(Number), exp = Date.UTC(p2[0], p2[1]-1, p2[2]) + 175*DAY;
+    var left = Math.ceil((exp - NOW) / DAY), e = new Date(exp);
+    $('stExpire').textContent = e.getUTCFullYear() + '年' + (e.getUTCMonth()+1) + '月' + e.getUTCDate() + '日ごろ' + (left > 0 ? '（あと' + left + '日）' : '');
+    if (left <= 14 && ST.state !== 'error') {
+      $('stExpire').classList.add('bad');
+      notice += box('info', '🔑', 'Spotifyとの連携の期限が近づいています',
+        (left > 0 ? 'あと' + left + '日ほどで' : 'まもなく') + '連携が切れます。切れる前に次の手順で更新しておくと、記録が途切れません。',
+        FIX.token_expired.steps, true);
+    }
+  }
+  $('notice').innerHTML = notice;
   render();
 })();
 </script>
