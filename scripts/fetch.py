@@ -16,7 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,10 +25,10 @@ ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
 HISTORY_PATH = ROOT / "data" / "history.csv"   # Spotifyから取り寄せた過去の履歴（あれば）
 TRACKS_PATH = ROOT / "data" / "tracks.json"    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
-HISTORY_LOOKUP_LIMIT = 300                      # 過去の履歴の曲情報を1回に調べる最大件数
-ARTIST_LOOKUP_LIMIT = 150                       # アーティスト情報（写真・ジャンル）を1回に調べる最大件数
-MB_LIMIT = 60                                   # MusicBrainzでジャンルを調べる最大件数（1秒に1回までの決まりがあるため）
-MB_API = "https://musicbrainz.org/ws/2"
+HISTORY_LOOKUP_LIMIT = 120                      # 過去の履歴の曲情報を1回に調べる最大件数
+ARTIST_LOOKUP_LIMIT = 60                        # アーティスト写真を1回に調べる最大件数
+PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
+MIN_COOLDOWN = 30 * 60                          # 429で止められたとき、最低これだけ（秒）補完を休む
 FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
 API = "https://api.spotify.com/v1"
 LOOKUP_LIMIT = 40  # 1回の実行で補完する最大件数（曲・アーティストそれぞれ）
@@ -105,6 +105,34 @@ def save_status(st):
     STATUS_PATH.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
+RATE = {"until": None}   # 429で止められたときの「この時刻までは補完を休む」
+
+
+def cooling():
+    """前回429で止められていて、まだ休む時間中なら True"""
+    until = RATE["until"] or load_status().get("cooldownUntil")
+    if not until:
+        return False
+    try:
+        return datetime.now(timezone.utc) < datetime.fromisoformat(until)
+    except ValueError:
+        return False
+
+
+def hit_limit(e):
+    """429を受けたら、Spotifyが指定した時間（最低30分）だけ補完を休む"""
+    try:
+        wait = int(e.headers.get("Retry-After") or 0)
+    except (TypeError, ValueError):
+        wait = 0
+    wait = max(wait, MIN_COOLDOWN)
+    until = datetime.now(timezone.utc) + timedelta(seconds=wait)
+    RATE["until"] = until.isoformat(timespec="seconds")
+    jst = until + timedelta(hours=9)
+    print(f"Spotifyから「問い合わせが多すぎる」と言われたため、{jst:%m/%d %H:%M}（日本時間）ごろまで画像の補完を休みます。"
+          "再生の記録は続けます。")
+
+
 def pick_image(obj):
     imgs = (obj or {}).get("images") or []
     if not imgs:
@@ -143,6 +171,9 @@ def enrich_history(token):
     よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
     if not HISTORY_PATH.exists():
         return 0
+    if cooling():
+        print("過去の履歴：Spotifyの制限で休憩中のため、今回は曲情報の取得をお休みします")
+        return 0
     cache = {}
     if TRACKS_PATH.exists():
         try:
@@ -164,7 +195,10 @@ def enrich_history(token):
             if e.code in (400, 404):
                 cache[tid] = {}          # Spotifyから消えた曲など。次回からは調べない
                 continue
-            print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e.code}")
+            if e.code == 429:
+                hit_limit(e)
+            else:
+                print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e.code}")
             break
         except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
             print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e}")
@@ -177,39 +211,12 @@ def enrich_history(token):
             "duration_ms": t.get("duration_ms", 0),
         }
         done += 1
-        time.sleep(0.05)
+        time.sleep(PACE)
     if done or todo:
         TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
     left = max(0, len(counts) - len(todo))
     print(f"過去の履歴：曲情報 {done}件を取得（残り 約{left:,}曲）")
     return done
-
-
-def mb_get(path):
-    repo = os.environ.get("GITHUB_REPOSITORY", "arashi-oym/spotify-log")
-    req = urllib.request.Request(MB_API + path, headers={
-        "User-Agent": f"MyListeningLog/1.0 ( https://github.com/{repo} )", "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.load(r)
-
-
-def mb_genres(spotify_artist_id):
-    """MusicBrainz（無料の公開音楽データベース）で、Spotifyのアーティストに対応するジャンルを調べる"""
-    time.sleep(1.1)
-    url = urllib.parse.quote(f"https://open.spotify.com/artist/{spotify_artist_id}", safe="")
-    try:
-        d = mb_get(f"/url?resource={url}&inc=artist-rels&fmt=json")
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return []                 # MusicBrainzに登録がない
-        raise
-    mbid = next((rel["artist"]["id"] for rel in d.get("relations", []) if rel.get("artist")), None)
-    if not mbid:
-        return []
-    time.sleep(1.1)
-    a = mb_get(f"/artist/{mbid}?inc=genres&fmt=json")
-    gs = sorted(a.get("genres") or [], key=lambda g: -(g.get("count") or 0))
-    return [g.get("name", "") for g in gs if g.get("name")]
 
 
 def artist_play_counts(rows):
@@ -236,55 +243,41 @@ def artist_play_counts(rows):
 
 
 def update_artists(token, rows):
-    """アーティストの写真とジャンルを、よく聴いたアーティストから順に調べて artists.json に保存する。
-    ジャンルはまずSpotifyから取り、Spotifyにないときだけ MusicBrainz で補う。"""
+    """アーティストの写真を、よく聴いたアーティストから順に調べて artists.json に保存する"""
     cache = {}
     if ARTISTS_PATH.exists():
         try:
             cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
         except ValueError:
             cache = {}
+    if cooling():
+        print("アーティスト写真：Spotifyの制限で休憩中のため、今回はお休みします")
+        return 0
     counts = artist_play_counts(rows)
-    need = [aid for aid in sorted(counts, key=lambda k: -counts[k]) if "genres" not in (cache.get(aid) or {})]
-    got = mb_used = 0
-    mb_ok = True
+    need = [aid for aid in sorted(counts, key=lambda k: -counts[k]) if aid not in cache]
+    got = 0
     for aid in need[:ARTIST_LOOKUP_LIMIT]:
         try:
             a = api_get(token, f"/artists/{aid}")
         except urllib.error.HTTPError as e:
             if e.code in (400, 404):
-                cache[aid] = {"name": "", "image": "", "genres": [], "genreSource": "none"}
+                cache[aid] = {"name": "", "image": ""}
                 continue
-            print(f"アーティスト情報の取得を中断しました（次回また続きから）: {e.code}")
+            if e.code == 429:
+                hit_limit(e)
+            else:
+                print(f"アーティスト写真の取得を中断しました（次回また続きから）: {e.code}")
             break
         except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
-            print(f"アーティスト情報の取得を中断しました（次回また続きから）: {e}")
+            print(f"アーティスト写真の取得を中断しました（次回また続きから）: {e}")
             break
-        entry = {"name": a.get("name", ""), "image": pick_image(a)}
-        genres = [g for g in (a.get("genres") or []) if g]
-        source = "spotify" if genres else ""
-        if not genres:
-            if not mb_ok or mb_used >= MB_LIMIT:
-                cache[aid] = {**(cache.get(aid) or {}), **entry}   # 写真だけ保存し、ジャンルは次回
-                break
-            try:
-                genres = mb_genres(aid)
-                mb_used += 1
-                source = "musicbrainz" if genres else "none"
-            except (urllib.error.HTTPError, urllib.error.URLError, socket.timeout, TimeoutError, ValueError) as e:
-                print(f"MusicBrainzの問い合わせを中断しました（次回また続きから）: {e}")
-                mb_ok = False
-                cache[aid] = {**(cache.get(aid) or {}), **entry}
-                break
-        entry["genres"] = genres
-        entry["genreSource"] = source
-        cache[aid] = entry
+        cache[aid] = {"name": a.get("name", ""), "image": pick_image(a)}
         got += 1
-        time.sleep(0.05)
+        time.sleep(PACE)
     if cache:
         ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    left = sum(1 for aid in counts if "genres" not in (cache.get(aid) or {}))
-    print(f"アーティスト情報 {got}件を取得（うちMusicBrainz {mb_used}件）／ジャンル未取得 残り約{left:,}組")
+    left = sum(1 for aid in counts if aid not in cache)
+    print(f"アーティスト写真 {got}件を取得（残り 約{left:,}組）")
     return got
 
 
@@ -342,26 +335,30 @@ def sync():
         if (not r["image"] or not r["artist_ids"]) and SPOTIFY_ID.match(tid) and tid not in missing:
             missing.append(tid)
     looked = 0
-    for tid in missing[:LOOKUP_LIMIT]:
+    for tid in ([] if cooling() else missing[:LOOKUP_LIMIT]):
         try:
             t = api_get(token, f"/tracks/{tid}")
         except urllib.error.HTTPError as e:
             if e.code in (400, 404):
                 continue
-            print(f"曲情報の補完を中断しました（次回また試します）: {e.code}")
+            if e.code == 429:
+                hit_limit(e)
+            else:
+                print(f"曲情報の補完を中断しました（次回また試します）: {e.code}")
             break
         except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
             print(f"曲情報の補完を中断しました（次回また試します）: {e}")
             break
         fill(tid, *track_extras(t))
         looked += 1
+        time.sleep(PACE)
 
     save_rows(rows)
     enrich_history(token)
 
     got = update_artists(token, rows)
 
-    print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト情報 {got}件")
+    print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト写真 {got}件")
 
 
 def main():
@@ -378,6 +375,10 @@ def main():
         print(f"[{e.code}] {e.message}\n{e.detail}")
         sys.exit(0 if e.code == "temporary" else 2)
 
+    if RATE["until"]:
+        st["cooldownUntil"] = RATE["until"]
+    elif st.get("cooldownUntil") and not cooling():
+        st.pop("cooldownUntil", None)
     h = token_hash()
     if h and st.get("tokenHash") != h:
         st["tokenHash"] = h

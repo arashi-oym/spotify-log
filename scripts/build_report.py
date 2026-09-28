@@ -111,73 +111,6 @@ def short_img(url):
 
 
 
-# ---------------- ジャンル ----------------
-# Spotify / MusicBrainz のジャンルはとても細かい（例: "k-pop girl group"）ので、大きな分類にまとめる。
-# 上から順に調べ、最初に当てはまった分類にする。
-GENRE_RULES = [
-    ("K-POP", ["k-pop", "kpop", "korean", "k-rap", "k-indie", "k-rock", "k-ballad", "k-r&b", "trot"]),
-    ("J-POP・邦楽", ["j-pop", "jpop", "japanese", "j-rock", "j-rap", "j-idol", "anime", "vocaloid", "city pop", "kayokyoku", "enka", "visual kei", "shibuya-kei", "j-r&b"]),
-    ("C-POP", ["c-pop", "mandopop", "cantopop", "chinese", "taiwan"]),
-    ("ラテン", ["latin", "reggaeton", "bachata", "salsa", "cumbia", "urbano", "corrido", "sertanejo", "funk carioca"]),
-    ("ヒップホップ", ["hip hop", "hip-hop", "rap", "trap", "drill", "grime", "boom bap"]),
-    ("R&B・ソウル", ["r&b", "rnb", "soul", "funk", "neo soul", "gospel"]),
-    ("ポップ", ["dance pop", "electropop", "synthpop", "synth-pop"]),
-    ("EDM・ダンス", ["edm", "house", "dubstep", "electro", "techno", "trance", "drum and bass", "dnb", "big room",
-                  "future bass", "brostep", "electronic", "dance", "hardstyle", "garage", "bass music", "riddim", "moombahton", "tropical"]),
-    ("ロック", ["rock", "metal", "punk", "emo", "grunge", "indie", "alternative", "shoegaze", "post-hardcore", "screamo"]),
-    ("ジャズ・ブルース", ["jazz", "blues", "swing", "bossa nova"]),
-    ("クラシック・サントラ", ["classical", "soundtrack", "orchestra", "score", "piano", "opera", "musical", "show tunes"]),
-    ("カントリー・フォーク", ["country", "folk", "americana", "bluegrass", "singer-songwriter", "acoustic"]),
-    ("レゲエ", ["reggae", "dancehall", "ska", "afrobeat", "afrobeats", "amapiano"]),
-    ("ポップ", ["pop"]),
-]
-GENRE_ORDER = []
-for _name, _ in GENRE_RULES:
-    if _name not in GENRE_ORDER:
-        GENRE_ORDER.append(_name)
-GENRE_ORDER.append("その他")
-
-
-def genre_category(genres):
-    """細かいジャンルのリストから、大きな分類を1つ決める（多数決。同数なら先に出てきたもの）"""
-    votes, first = {}, {}
-    for i, g in enumerate(genres):
-        g = g.lower()
-        cat = "その他"
-        for name, words in GENRE_RULES:
-            if any(w in g for w in words):
-                cat = name
-                break
-        votes[cat] = votes.get(cat, 0) + 1
-        first.setdefault(cat, i)
-    if not votes:
-        return None
-    # 「その他」は、ほかに分類があればそちらを優先
-    if len(votes) > 1:
-        votes.pop("その他", None)
-    return max(votes, key=lambda c: (votes[c], -first[c]))
-
-
-def artist_genres(rows):
-    """アーティスト名 → 分類の番号（ジャンルがわかっている人だけ）"""
-    cache, out = read_json(ARTISTS_PATH), {}
-    for r in rows:
-        names = r["artists"].split(" / ")
-        ids = r["artist_ids"].split(" / ") if r["artist_ids"] else []
-        if len(names) != len(ids):
-            continue
-        for name, aid in zip(names, ids):
-            if name in out:
-                continue
-            info = cache.get(aid) or {}
-            if "genres" not in info:
-                continue
-            cat = genre_category(info["genres"])
-            if cat:
-                out[name] = GENRE_ORDER.index(cat)
-    return out
-
-
 def to_ms(iso):
     try:
         return int(datetime.fromisoformat(iso).timestamp() * 1000)
@@ -378,8 +311,6 @@ def main():
         "p": plays,
         "imgPrefix": IMG_PREFIX,
         "artistImages": {k: short_img(v) for k, v in artist_images(rows).items()},
-        "genreNames": GENRE_ORDER,
-        "artistGenre": artist_genres(rows),
         "status": {
             "state": st.get("state", "ok"),
             "code": st.get("code", ""),

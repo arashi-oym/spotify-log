@@ -350,7 +350,7 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 }
 /* ランキングの見出し：狭いときは切り替えボタンを見出しの下に全幅で */
 @container (max-width:420px){
-  #rankCard .card-head .seg-mini{margin-left:0;flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr);}
+  #rankCard .card-head .seg-mini{margin-left:0;flex:1 1 100%;display:grid;grid-template-columns:1fr 1fr;}
   #monthlyCard .card-head .push{flex:1 1 100%;margin-left:0;}
 }
 /* 合計ボックス */
@@ -510,9 +510,6 @@ body.modal-lock{overflow:hidden;}
 .acc-body .status-actions{margin-top:12px;}
 .acc-body .dl-box{margin-top:14px;padding-top:12px;}
 
-/* ジャンルの注記・割合 */
-.rank-note{font-size:11.5px;color:var(--text-faint);line-height:1.6;padding:10px 20px 12px;border-top:1px solid var(--line);}
-.pcard .pshare{font-family:var(--font-body);font-size:11.5px;font-weight:600;color:var(--corp-ink);margin-left:8px;}
 /* トップへ戻るボタン（下にスクロールしたときだけ、右下に控えめに出る） */
 #toTop{
   position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:150;
@@ -579,11 +576,9 @@ body.modal-lock #toTop{display:none;}
           <div class="seg seg-mini push" id="modeSeg">
             <button type="button" data-mode="songs" class="on">曲</button>
             <button type="button" data-mode="artists">アーティスト</button>
-            <button type="button" data-mode="genres">ジャンル</button>
           </div>
         </div>
         <ol class="rank-list" id="rankList"></ol>
-        <p class="rank-note" id="genreNote" hidden></p>
         <button type="button" class="more" id="moreBtn">もっと見る</button>
       </section>
 
@@ -696,7 +691,6 @@ body.modal-lock #toTop{display:none;}
   var PLAYS = [], P = RAW.p || [], tacc = 0;
   for (var pi = 0; pi + 1 < P.length; pi += 2) { tacc += P[pi]; PLAYS.push([tacc*1000, P[pi+1]]); }
   var ARTIST_IMG = {}; Object.keys(RAW.artistImages || {}).forEach(function(k){ ARTIST_IMG[k] = fullImg(RAW.artistImages[k]); });
-  var GENRE_NAMES = RAW.genreNames || [], ARTIST_GENRE = RAW.artistGenre || {};
   var DAY = 86400000;
   var NOW = Date.now();
   var LAST_PLAY = PLAYS.length ? PLAYS[PLAYS.length-1][0] : null;
@@ -716,14 +710,6 @@ body.modal-lock #toTop{display:none;}
     if (!img) return ph(name, cls);
     return '<img class="art '+(cls||'')+'" src="'+esc(img)+'" alt="" loading="lazy" decoding="async" data-ph="'+esc(ph(name, cls))+'" onerror="this.outerHTML=this.dataset.ph">';
   }
-  // ジャンルのアイコン（分類ごとに決まった色と記号）
-  var GENRE_ICON = {'K-POP':['K',330],'J-POP・邦楽':['J',355],'C-POP':['C',20],'ポップ':['♪',300],'ヒップホップ':['H',40],
-    'R&B・ソウル':['R',270],'EDM・ダンス':['E',190],'ロック':['R',0],'ラテン':['L',25],'ジャズ・ブルース':['J',215],
-    'クラシック・サントラ':['C',160],'カントリー・フォーク':['F',85],'レゲエ':['R',120],'その他':['…',0]};
-  function genreIcon(name, cls){
-    var d = GENRE_ICON[name] || [name.charAt(0), hue(name)], h = d[1], sat = name === 'その他' ? '0%' : '62%';
-    return '<div class="art '+(cls||'')+'" style="background:linear-gradient(135deg,hsl('+h+','+sat+',58%),hsl('+((h+40)%360)+','+sat+',36%))">'+esc(d[0])+'</div>';
-  }
   function hm(min){var h=Math.floor(min/60), m=min%60; return h ? fmt(h)+'時間'+m+'分' : m+'分';}
   // 日本時間の年・月・日を取り出す
   function jst(t){var d=new Date(t+9*3600000);return {y:d.getUTCFullYear(),m:d.getUTCMonth()+1,d:d.getUTCDate()};}
@@ -737,7 +723,7 @@ body.modal-lock #toTop{display:none;}
 
   function aggregate(from, to){
     var a = lowerBound(from), b = lowerBound(to);
-    var sc = {}, sl = {}, ac = {}, gc = {}, known = 0, total = 0, minutes = 0;
+    var sc = {}, sl = {}, ac = {}, total = 0, minutes = 0;
     var dayKey = -1, daySongs = {}, dayArtists = {}, songDays = 0, artistDays = 0;
     for (var i = a; i < b; i++) {
       var idx = PLAYS[i][1], sg = SONGS[idx]; if (!sg) continue;
@@ -746,13 +732,6 @@ body.modal-lock #toTop{display:none;}
       if (!daySongs[idx]) { daySongs[idx] = 1; songDays++; }
       total++; minutes += sg.min;
       sc[idx] = (sc[idx]||0) + 1; sl[idx] = PLAYS[i][0];
-      // ジャンル：メインのアーティスト（最初に名前がある人）のジャンルで数える
-      var main = sg.a.split(' / ')[0], gi = ARTIST_GENRE[main];
-      if (gi != null) {
-        known++;
-        var G = gc[gi] = gc[gi] || {n:GENRE_NAMES[gi]||'その他', c:0, m:0, last:0, by:{}};
-        G.c++; G.m += sg.min; G.last = PLAYS[i][0]; G.by[main] = (G.by[main]||0) + 1;
-      }
       sg.a.split(' / ').forEach(function(n){
         if (!n) return;
         if (!dayArtists[n]) { dayArtists[n] = 1; artistDays++; }
@@ -769,12 +748,7 @@ body.modal-lock #toTop{display:none;}
     rankUp(songs); rankUp(artists);
     var first = Math.max(from, PLAYS.length ? PLAYS[0][0] : from), last = Math.min(to, NOW);
     var days = Math.max(1, Math.ceil((last - first) / DAY));
-    var genres = Object.keys(gc).map(function(k){
-      var G = gc[k], top = Object.keys(G.by).sort(function(x,y){return G.by[y]-G.by[x];}).slice(0,3);
-      return {n:G.n, c:G.c, m:Math.round(G.m), last:G.last, top:top};
-    }).sort(byCount);
-    rankUp(genres);
-    return {songs:songs, artists:artists, genres:genres, genreKnown:known, total:total, minutes:Math.round(minutes), days:days, songDays:songDays, artistDays:artistDays};
+    return {songs:songs, artists:artists, total:total, minutes:Math.round(minutes), days:days, songDays:songDays, artistDays:artistDays};
   }
 
   /* ============================================================
@@ -902,9 +876,8 @@ body.modal-lock #toTop{display:none;}
     tabs();
     var R = currentRange(), p = aggregate(R.from, R.to);
     $('sumTitle').textContent = R.label + 'のサマリー';
-    var isSong = state.mode==='songs', isGenre = state.mode==='genres';
-    $('rankTitle').textContent = R.label + 'の' + (isSong ? 'トップソング' : isGenre ? 'トップジャンル' : 'トップアーティスト');
-    $('genreNote').hidden = true;
+    var isSong = state.mode==='songs';
+    $('rankTitle').textContent = R.label + 'の' + (isSong ? 'トップソング' : 'トップアーティスト');
 
     if (!p.total) {
       $('sumPlays').innerHTML = '0<small>回</small>'; $('sumMinutes').textContent = 'この期間の記録はありません';
@@ -933,32 +906,6 @@ body.modal-lock #toTop{display:none;}
       + '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップアーティスト'+tieNote(ta,'組')+'</div>'
       + '<div class="pbody">'+art(a.n,'lg round',a.img)+'<div style="min-width:0"><div class="pname">'+esc(a.n)+'</div><div class="psub">'+fmt(a.m)+'分</div></div></div>'
       + '<div class="pcount">'+fmt(a.c)+'<small>回</small></div></div>';
-    if (p.genres.length) {
-      var g = p.genres[0], tg = tiedTop(p.genres);
-      $('pcards').innerHTML += '<div class="pcard"><span class="prec">No.1</span><div class="ph">トップジャンル'+tieNote(tg,'ジャンル')+'</div>'
-        + '<div class="pbody">'+genreIcon(g.n,'lg')+'<div style="min-width:0"><div class="pname">'+esc(g.n)+'</div><div class="psub">'+esc(g.top.join('、'))+'</div></div></div>'
-        + '<div class="pcount">'+fmt(g.c)+'<small>回</small><span class="pshare">'+Math.round(g.c/p.genreKnown*100)+'%</span></div></div>';
-    }
-
-    if (isGenre) {
-      var share = p.total ? Math.round(p.genreKnown / p.total * 100) : 0;
-      $('genreNote').hidden = false;
-      $('genreNote').textContent = 'ジャンルがわかっているアーティストの再生（この期間の' + share + '%）で集計しています。ジャンルはメインのアーティストで決まり、まだの人は順次調べています。';
-      if (!p.genres.length) {
-        $('rankList').innerHTML = '<li class="empty">この期間のジャンルはまだ調べ終わっていません。数日かけて自動でそろっていきます。</li>';
-        $('moreBtn').style.display = 'none';
-      } else {
-        var gmax = p.genres[0].c;
-        $('rankList').innerHTML = p.genres.map(function(it){
-          return '<li class="rk'+(it.rank<=3?' top':'')+(it.rank===1?' first':'')+'"><div class="no">'+it.rank+'</div>'
-            + genreIcon(it.n,'')
-            + '<div class="meta"><div class="t">'+esc(it.n)+'</div><div class="a">'+esc(it.top.join('、'))+'</div>'
-            + '<div class="bar"><i style="width:'+(it.c/gmax*100).toFixed(1)+'%"></i></div></div>'
-            + '<div class="cnt"><b>'+fmt(it.c)+'</b><small>回</small><span class="min">'+Math.round(it.c/p.genreKnown*100)+'%</span></div></li>';
-        }).join('');
-        $('moreBtn').style.display = 'none';
-      }
-    } else {
     var items = isSong ? p.songs : p.artists, max = items[0].c;
     // 20位までを表示（20位と同率の曲も含める。ただし同率が多すぎるときは30件で区切る）
     var shown = items.filter(function(it){ return it.rank <= TOP; });
@@ -975,7 +922,6 @@ body.modal-lock #toTop{display:none;}
     var unit = isSong ? '曲' : '組';
     $('moreBtn').style.display = items.length > shown.length ? '' : 'none';
     $('moreBtn').textContent = state.all ? TOP + '位までに戻す' : 'すべて表示（全' + fmt(items.length) + unit + '）';
-    }
 
     // 月ごとの1位：年・全期間・60日以上の期間のとき表示。行を押すとその月へ
     var showMonthly = R.kind==='year' || R.kind==='all' || (R.kind==='range' && R.to-R.from > 60*DAY);
