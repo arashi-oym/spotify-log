@@ -6,7 +6,9 @@ on:
   workflow_dispatch:        # 手動で実行するボタン（Run workflow）
 
 permissions:
-  contents: write
+  contents: write   # data フォルダを保存するため
+  pages: write      # 専用ページを公開するため
+  id-token: write   # 専用ページを公開するため
 
 concurrency:
   group: spotify-log
@@ -32,11 +34,12 @@ jobs:
       - name: ページを作成
         run: python3 scripts/build_report.py
 
+      # 記録として保存するのは data フォルダだけ（専用ページ本体は保存せず、次の手順でその都度お届けします）
       - name: 保存（コミット）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data docs
+          git add -A data
           if git diff --cached --quiet; then
             echo "変更なし"
           else
@@ -45,9 +48,27 @@ jobs:
             git push
           fi
 
+      - name: 専用ページを準備
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
       # 手当てが必要なエラーのときは、ここで失敗させて通知メールを送る
       - name: エラーのお知らせ
         if: steps.fetch.outcome == 'failure'
         run: |
           echo "::error title=Spotifyとの連携に問題があります::専用ページ上部の案内、またはREADMEの「止まったときの直し方」を確認してください。"
           exit 1
+
+  deploy:
+    needs: record
+    if: ${{ !cancelled() }}   # record がエラー通知で失敗扱いになっても、作成済みのページ（エラー表示つき）は公開する
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 専用ページを公開
+        id: deployment
+        uses: actions/deploy-pages@v4
