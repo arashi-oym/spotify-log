@@ -19,6 +19,7 @@ ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
 HISTORY_PATH = ROOT / "data" / "history.csv"
 TRACKS_PATH = ROOT / "data" / "tracks.json"
+EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（身に覚えのない再生など）
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
@@ -84,8 +85,23 @@ def load_rows():
         if info.get("duration_ms"):
             r["ms"] = int(info["duration_ms"])
     rows = hist + live
+    ex = excluded_plays()
+    if ex:
+        before = len(rows)
+        rows = [r for r in rows if (r["dt"].strftime("%Y-%m-%dT%H:%M:%SZ"), r["track_id"]) not in ex]
+        print(f"除外リストにより {before - len(rows):,}件の再生を集計から外しました")
     rows.sort(key=lambda x: x["dt"])
     return rows
+
+
+def excluded_plays():
+    """data/exclude.json に載っている再生（日時と曲IDの組）を返す"""
+    data, out = read_json(EXCLUDE_PATH), set()
+    for g in data.get("groups", []):
+        for p in g.get("plays", []):
+            if len(p) >= 2:
+                out.add((p[0][:19] + "Z", p[1]))
+    return out
 
 
 def artist_images(rows):

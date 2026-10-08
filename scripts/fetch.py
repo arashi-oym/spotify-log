@@ -24,7 +24,8 @@ CSV_PATH = ROOT / "data" / "plays.csv"
 ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
 HISTORY_PATH = ROOT / "data" / "history.csv"   # Spotifyから取り寄せた過去の履歴（あれば）
-TRACKS_PATH = ROOT / "data" / "tracks.json"    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
+TRACKS_PATH = ROOT / "data" / "tracks.json"
+EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画像の取得もしない）    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
 HISTORY_LOOKUP_LIMIT = 120                      # 過去の履歴の曲情報を1回に調べる最大件数
 ARTIST_LOOKUP_LIMIT = 60                        # アーティスト写真を1回に調べる最大件数
 PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
@@ -166,6 +167,21 @@ def save_rows(rows):
         w.writerows(rows)
 
 
+def excluded_plays():
+    """data/exclude.json に載っている再生（日時と曲IDの組）"""
+    out = set()
+    if EXCLUDE_PATH.exists():
+        try:
+            data = json.loads(EXCLUDE_PATH.read_text(encoding="utf-8") or "{}")
+        except ValueError:
+            return out
+        for g in data.get("groups", []):
+            for p in g.get("plays", []):
+                if len(p) >= 2:
+                    out.add((p[0][:19] + "Z", p[1]))
+    return out
+
+
 def enrich_history(token):
     """過去の履歴（history.csv）の曲について、ジャケ写・参加アーティスト・曲の長さを少しずつ調べて tracks.json に保存する。
     よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
@@ -182,8 +198,11 @@ def enrich_history(token):
             cache = {}
     counts = {}
     with HISTORY_PATH.open(newline="", encoding="utf-8-sig") as f:
+        ex = excluded_plays()
         for r in csv.DictReader(f):
             tid = r.get("track_id") or ""
+            if ((r.get("played_at") or "")[:19] + "Z", tid) in ex:
+                continue   # 除外した再生の曲は調べない（問い合わせの節約）
             if SPOTIFY_ID.match(tid) and tid not in cache:
                 counts[tid] = counts.get(tid, 0) + 1
     todo = sorted(counts, key=lambda k: -counts[k])[:HISTORY_LOOKUP_LIMIT]
@@ -233,7 +252,10 @@ def artist_play_counts(rows):
             tracks = {}
         per_track = Counter()
         with HISTORY_PATH.open(newline="", encoding="utf-8-sig") as f:
+            ex = excluded_plays()
             for r in csv.DictReader(f):
+                if ((r.get("played_at") or "")[:19] + "Z", r.get("track_id") or "") in ex:
+                    continue
                 per_track[r.get("track_id") or ""] += 1
         for tid, c in per_track.items():
             for aid in ((tracks.get(tid) or {}).get("artist_ids") or "").split(" / "):
