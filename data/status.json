@@ -4,8 +4,21 @@
  "state": "ok",
  "code": "",
  "message": "",
- "at": "2026-10-15T14:49:30+00:00",
- "lastSuccess": "2026-10-15T14:49:30+00:00",
+ "at": "2026-10-15T15:02:14+00:00",
+ "lastSuccess": "2026-10-15T15:02:14+00:00",
  "cooldownUntil": "2026-10-16T01:45:58+00:00",
- "usage": []
+ "usage": [],
+ "lastRun": {
+  "artistsLeft": 246,
+  "jackets": 1963,
+  "jacketsLeft": 6047,
+  "added": 0,
+  "looked": 0,
+  "artists": 0,
+  "at": "2026-10-15T15:02:14+00:00",
+  "requests": 0,
+  "used24": 0,
+  "budget": 590,
+  "coolingUntil": "2026-10-16T01:45:58+00:00"
+ }
 }
