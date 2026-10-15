@@ -319,7 +319,7 @@ def guide():
 
 
 # ---------------- ダウンロード用ファイル ----------------
-# ページから「ファイル一式（zip）」と「再生記録（CSV）」を取得できるようにする。
+# ページから「更新用ファイル」「友だちに渡すキット」「再生記録（CSV）」を取得できるようにする。
 # zip の中身は、GitHubのリポジトリと同じ構成にしている。
 
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)   # 中身が同じなら zip も同じになるよう日時を固定
@@ -333,13 +333,31 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
+VERSION = "v15"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
 
-def build_downloads(rows):
+def update_zip_name(repo):
+    """更新用ファイルの名前（例：spotify-log-v15.zip）"""
+    return f"{repo.split('/')[-1]}-{VERSION}.zip"
+
+
+def build_downloads(rows, repo):
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
-    # ファイル一式：GitHubのリポジトリと同じ構成（個人の記録 data/ は含めない）
+    for old in DOWNLOADS.glob("*.zip"):
+        old.unlink()                        # 古いバージョンのzipを残さない
+
+    # 更新用ファイル：自分のリポジトリを最新版にするとき、そのままアップロードする分（README.md と scripts/）
+    name = update_zip_name(repo)
+    with zipfile.ZipFile(DOWNLOADS / name, "w") as z:
+        top = name[:-4]
+        add_file(z, f"{top}/README.md", README.read_bytes())
+        for f in KIT_FILES:
+            if (SCRIPTS / f).exists():
+                add_file(z, f"{top}/scripts/{f}", (SCRIPTS / f).read_bytes())
+
+    # 友だちに渡すキット：GitHubのリポジトリと同じ構成（個人の記録 data/ は含めない）
     files = [("README.md", README), (".gitignore", ROOT / ".gitignore"), (".github/workflows/spotify.yml", WORKFLOW)]
     files += [(f"scripts/{name}", SCRIPTS / name) for name in KIT_FILES]
     with zipfile.ZipFile(DOWNLOADS / "listening-log-kit.zip", "w") as z:
@@ -408,7 +426,8 @@ def main():
         "guideAnchors": guide_anchors,
         "actions": f"https://github.com/{repo}/actions",
         "setup": "setup.html", "importPage": "import.html",
-        "downloads": {"zip": "downloads/listening-log-kit.zip", "csv": "downloads/plays.csv", "rows": len(rows)},
+        "downloads": {"zip": "downloads/listening-log-kit.zip", "update": "downloads/" + update_zip_name(repo),
+                      "version": VERSION, "csv": "downloads/plays.csv", "rows": len(rows)},
     }
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     DOCS.mkdir(exist_ok=True)
@@ -416,7 +435,7 @@ def main():
     html = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
     (DOCS / "index.html").write_text(html, encoding="utf-8")
     write_tool_pages(repo)
-    build_downloads(rows)
+    build_downloads(rows, repo)
     print(f"docs/index.html を更新しました（再生 {len(rows):,}件 / 曲 {len(songs):,}曲）")
 
 

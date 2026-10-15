@@ -955,9 +955,13 @@ body.modal-lock #toTop{display:none;}
               </div>
               <div class="dl-box">
                 <div class="dl-title">ダウンロード</div>
+                <a class="dl-item" id="dlUpdate" href="#" download>
+                  <span class="dl-ico" aria-hidden="true">🔄</span>
+                  <span class="dl-text"><b id="dlUpdateName">更新用ファイル（zip）</b><small>README.md と scripts の中身。このツールを最新版にするときに</small></span>
+                </a>
                 <a class="dl-item" id="dlZip" href="downloads/listening-log-kit.zip" download="listening-log-kit.zip">
-                  <span class="dl-ico" aria-hidden="true">🗂</span>
-                  <span class="dl-text"><b>ファイル一式（zip）</b><small>説明書・プログラム一式。作り直すときや、友人に渡すときに</small></span>
+                  <span class="dl-ico" aria-hidden="true">🎁</span>
+                  <span class="dl-text"><b>友だちに渡すキット（zip）</b><small>説明書・プログラム一式（再生の記録は入っていません）。新しく作るときや、友人に渡すときに</small></span>
                 </a>
                 <a class="dl-item" id="dlCsv" href="downloads/plays.csv" download="spotify-plays.csv">
                   <span class="dl-ico" aria-hidden="true">📄</span>
@@ -1398,6 +1402,8 @@ body.modal-lock #toTop{display:none;}
   $('actionsLink').href = ACTIONS;
   var DL = RAW.downloads || {};
   if (DL.rows != null) $('dlCsvNote').textContent = 'これまでの全再生（' + fmt(DL.rows) + '件）。Excelで開けます';
+  if (DL.update) { $('dlUpdate').href = DL.update; $('dlUpdate').setAttribute('download', DL.update.split('/').pop()); $('dlUpdateName').textContent = '更新用ファイル（' + DL.version + '）'; }
+  else $('dlUpdate').style.display = 'none';
   if (!DL.zip) { $('dlZip').style.display = 'none'; $('dlCsv').style.display = 'none'; }
 
   /* ---------------- 説明書（READMEをページ内で表示） ---------------- */
