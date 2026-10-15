@@ -236,10 +236,15 @@ button{font-family:inherit;}
 .pcard .pcount small{font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--text-sub);margin-left:2px;}
 .pcard .prec{position:absolute;top:-9px;right:11px;background:var(--corp);color:var(--on-corp);font-size:10px;font-weight:800;padding:2px 10px;border-radius:980px;box-shadow:0 2px 8px rgba(29,185,84,.35);}
 
-.status{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;}
+.status{display:grid;grid-template-columns:8.6em minmax(0,1fr);gap:4px 14px;font-size:12.5px;}
 .status dt{color:var(--text-sub);}
 .status dd{color:var(--dark);font-weight:600;font-variant-numeric:tabular-nums;}
 .live{display:inline-flex;align-items:center;gap:6px;}
+.st-sub{font-size:11.5px;font-weight:700;color:var(--text-sub);border-top:1px solid var(--line);padding-top:10px;margin:12px 0 6px;}
+.st-song{all:unset;cursor:pointer;color:var(--corp-ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--corp-border);text-underline-offset:3px;}
+.st-song:hover{text-decoration-color:currentColor;}
+.st-song:focus-visible{outline:2px solid var(--corp);outline-offset:2px;border-radius:4px;}
+.status dd small{font-weight:500;color:var(--text-sub);}
 .live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--corp);box-shadow:0 0 0 3px var(--corp-pale);}
 .hint{font-size:11px;color:var(--text-faint);line-height:1.6;margin-top:10px;}
 
@@ -938,9 +943,17 @@ body.modal-lock #toTop{display:none;}
         <div class="card-body">
           <dl class="status">
             <dt>最終確認</dt><dd><span class="live" id="stChecked">―</span></dd>
-            <dt>最後に聴いた曲</dt><dd id="stLast">―</dd>
             <dt>次の確認</dt><dd id="stNext">―</dd>
+            <dt>最後に聴いた曲</dt><dd id="stLast">―</dd>
             <dt>連携の期限</dt><dd id="stExpire">―</dd>
+          </dl>
+          <div class="st-sub run">最終確認で更新した内容</div>
+          <dl class="status run">
+            <dt>新しい再生</dt><dd id="stRunAdded">―</dd>
+            <dt>曲情報の補完</dt><dd id="stRunLooked">―</dd>
+            <dt>アーティスト写真</dt><dd id="stRunArtists">―</dd>
+            <dt>過去曲のジャケ写</dt><dd id="stRunJackets">―</dd>
+            <dt>問い合わせ</dt><dd id="stRunReq">―</dd>
           </dl>
           <details class="acc" id="supportAcc">
             <summary>説明書・ダウンロード</summary>
@@ -1352,8 +1365,33 @@ body.modal-lock #toTop{display:none;}
   /* ---------------- 記録の状態とお知らせ ---------------- */
   var ST = RAW.status || {};
   var GUIDE = RAW.guide || '#', ACTIONS = RAW.actions || '#';
-  $('stChecked').textContent = stamp(ST.lastSuccess || null);
-  $('stLast').textContent = stamp(LAST_PLAY);
+  // 記録の状態の日時：ページを開いたままでも意味が変わらないよう、「今日」などではなく日付で書く（例：2026/10/15（木）23:49）
+  function when(t){
+    if (t == null) return '―';
+    var d = new Date(t + 9*3600000);
+    return d.getUTCFullYear() + '/' + (d.getUTCMonth()+1) + '/' + d.getUTCDate() + '（' + '日月火水木金土'.charAt(d.getUTCDay()) + '）'
+      + d.getUTCHours() + ':' + String(d.getUTCMinutes()).padStart(2,'0');
+  }
+  $('stChecked').textContent = when(ST.lastSuccess || null);
+  if (PLAYS.length) {
+    var lastIdx = PLAYS[PLAYS.length-1][1], lastSong = SONGS[lastIdx] || {};
+    $('stLast').innerHTML = '<button type="button" class="st-song" data-song="' + lastIdx + '">' + esc(lastSong.t || '―') + '</button>'
+      + '<br><small>' + esc((lastSong.a || '') + '・' + when(LAST_PLAY)) + '</small>';
+  }
+  // 直近の更新（1時間ごとの実行で何が更新されたか）
+  (function(){
+    var R = ST.lastRun, rows = document.querySelectorAll('#statusCard .run');
+    if (!R) { Array.prototype.forEach.call(rows, function(e){ e.style.display = 'none'; }); return; }
+    function n(v, unit){ return v == null ? '―' : fmt(v) + unit; }
+    function left(v, unit){ return v == null ? '' : ' <small>（残り 約' + fmt(v) + unit + '）</small>'; }
+    $('stRunAdded').textContent = n(R.added, '件');
+    $('stRunLooked').textContent = n(R.looked, '件');
+    $('stRunArtists').innerHTML = esc(n(R.artists, '件')) + (R.artistsLeft ? left(R.artistsLeft, '組') : (R.artistsLeft === 0 ? ' <small>（すべて取得済み）</small>' : ''));
+    $('stRunJackets').innerHTML = esc(n(R.jackets, '曲')) + (R.jacketsLeft ? left(R.jacketsLeft, '曲') : (R.jacketsLeft === 0 ? ' <small>（すべて取得済み）</small>' : ''));
+    var req = n(R.requests, '回') + ' <small>（直近24時間で ' + fmt(R.used24 || 0) + '/' + fmt(R.budget || 0) + '回）</small>';
+    if (R.coolingUntil && R.coolingUntil > NOW) req = '休憩中 <small>（' + when(R.coolingUntil) + 'ごろまで・Spotifyの制限）</small>';
+    $('stRunReq').innerHTML = req;
+  })();
   var notice = '';
   var FIX = {
     not_configured: {key:'setup', cls:'info', title:'ようこそ！あと少しで記録が始まります', body:'Spotifyとの連携がまだ済んでいません。下のボタンから、スマホだけで設定できます。',
@@ -1376,21 +1414,25 @@ body.modal-lock #toTop{display:none;}
   var stale = ST.lastSuccess && NOW - ST.lastSuccess > 3*3600000;
   if (ST.state === 'error') {
     var f = FIX[ST.code] || FIX.unknown;
-    notice += box(f.cls, ST.code === 'not_configured' ? '👋' : '⚠️', f.title, f.body + (ST.at && ST.code !== 'not_configured' ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, f.key, f.link);
+    notice += box(f.cls, ST.code === 'not_configured' ? '👋' : '⚠️', f.title, f.body + (ST.at && ST.code !== 'not_configured' ? '（' + when(ST.at) + ' 時点）' : ''), f.steps, f.key, f.link);
     $('stNext').textContent = ST.code === 'not_configured' ? '設定が終わると始まります' : '直すまで記録が止まります'; $('stNext').classList.add('bad');
   } else if (ST.state === 'temporary' && stale) {
     notice += box('warn', '⏳', 'Spotifyに接続できない状態が続いています', 'Spotify側の一時的な不具合のことが多く、ふつうは自動で直ります。1日以上続く場合は、詳しい直し方を確認してください。', [], 'D');
   } else if (stale) {
-    notice += box('warn', '⏸️', '自動の確認が止まっているようです', '最後に確認できたのは ' + stamp(ST.lastSuccess) + ' です。GitHubの自動実行が止まっている可能性があります。', ['「実行の記録（Actions）」を開く','黄色い帯に「Enable workflow」ボタンがあれば押す','「Run workflow」を押して、緑のチェックになるか確認'], 'E');
+    notice += box('warn', '⏸️', '自動の確認が止まっているようです', '最後に確認できたのは ' + when(ST.lastSuccess) + ' です。GitHubの自動実行が止まっている可能性があります。', ['「実行の記録（Actions）」を開く','黄色い帯に「Enable workflow」ボタンがあれば押す','「Run workflow」を押して、緑のチェックになるか確認'], 'E');
   }
-  if (!stale && ST.state !== 'error') $('stNext').textContent = '1時間以内';
+  if (!stale && ST.state !== 'error') {
+    var nextAt = (ST.at || ST.lastSuccess || NOW) + 3600000;   // 1時間ごとに確認（GitHubの都合で少し遅れることがある）
+    $('stNext').innerHTML = esc(when(nextAt)) + 'ごろ' + (nextAt < NOW ? ' <small>（少し遅れています）</small>' : '');
+  }
   if (stale) { $('stChecked').classList.remove('live'); $('stNext').textContent = '止まっています'; $('stNext').classList.add('bad'); }
 
   // 連携の期限（連携を始めた日から約180日）
   if (ST.tokenSince) {
     var p2 = ST.tokenSince.split('-').map(Number), exp = Date.UTC(p2[0], p2[1]-1, p2[2]) + 175*DAY;
     var left = Math.ceil((exp - NOW) / DAY), e = new Date(exp);
-    $('stExpire').textContent = e.getUTCFullYear() + '年' + (e.getUTCMonth()+1) + '月' + e.getUTCDate() + '日ごろ' + (left > 0 ? '（あと' + left + '日）' : '');
+    $('stExpire').innerHTML = esc(e.getUTCFullYear() + '/' + (e.getUTCMonth()+1) + '/' + e.getUTCDate() + '（' + '日月火水木金土'.charAt(e.getUTCDay()) + '）ごろ')
+      + (left > 0 ? ' <small>（あと' + left + '日）</small>' : '');
     if (left <= 14 && ST.state !== 'error') {
       $('stExpire').classList.add('bad');
       notice += box('info', '🔑', 'Spotifyとの連携の期限が近づいています',
@@ -2553,6 +2595,29 @@ body.modal-lock #toTop{display:none;}
   $('toTop').addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
   toTopVis();
   render();
+
+  /* ---------------- 開いたままのページを最新にする ----------------
+     ページの中身は開いた時点の記録なので、長く開いたままだと古くなる。
+     ・ほかのアプリから戻ってきたとき、開いてから30分以上たっていれば読み込み直す
+     ・画面を見たまま放置しているときも、開いてから1時間以上・5分以上操作がなければ読み込み直す
+     （詳細や検索の画面を開いている途中は読み込み直さない。スクロール位置は元に戻す） */
+  var LOADED = Date.now(), lastTouch = Date.now();
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(function(ev){
+    document.addEventListener(ev, function(){ lastTouch = Date.now(); }, {passive: true});
+  });
+  function reloadIfOld(minAge, minIdle){
+    var t = Date.now();
+    if (document.visibilityState !== 'visible' || document.body.classList.contains('modal-lock')) return;
+    if (t - LOADED < minAge || t - lastTouch < minIdle) return;
+    try { sessionStorage.setItem('mll-scroll', String(window.scrollY)); } catch (e) {}
+    location.reload();
+  }
+  document.addEventListener('visibilitychange', function(){ reloadIfOld(30*60000, 0); });
+  setInterval(function(){ reloadIfOld(60*60000, 5*60000); }, 60000);
+  try {
+    var y = sessionStorage.getItem('mll-scroll');
+    if (y != null) { sessionStorage.removeItem('mll-scroll'); window.scrollTo(0, +y || 0); }
+  } catch (e) {}
 })();
 </script>
 </body>

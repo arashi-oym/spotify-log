@@ -31,8 +31,8 @@ EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画
 # 429（多すぎ）で止められ、最初の問い合わせから24時間たつまで待たされていた（再生履歴の取得は別枠で、止められない）。
 # そこで直近24時間の回数を自分で数え、上限の少し手前で止まるようにし、1時間ごとに均等に使う。
 DAILY_QUOTA = 600        # Spotifyの上限（観測値）
-DAILY_BUDGET = 570       # 自分で守る上限（観測値の95%。手動の Run workflow が重なっても超えないように）
-PER_RUN = 24             # 1回（1時間）に使う最大回数。24回 × 24時間 ≒ 570回
+DAILY_BUDGET = 590       # 自分で守る上限（観測値の98%）。回数は1回ずつ正確に数え、実行も1つずつ順番なので超えない
+PER_RUN = 25             # 1回（1時間）に使う最大回数。前回から時間が空いたときは、その分（最大3時間分）まとめて使う
 PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
 MIN_COOLDOWN = 30 * 60                          # 429で止められたとき、最低これだけ（秒）補完を休む
 FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
@@ -128,6 +128,7 @@ class Budget:
 
 
 BUDGET = Budget(0)
+REPORT = {}   # 今回の実行で何を更新したか（status.json に残し、ページの「記録の状態」に表示する）
 
 
 def recent_usage(st, now):
@@ -227,99 +228,221 @@ def history_records():
             yield from csv.DictReader(f)
 
 
-def enrich_history(token, limit):
-    """過去の履歴（history.csv）の曲について、ジャケ写・参加アーティスト・曲の長さを少しずつ調べて tracks.json に保存する。
-    よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
-    if not history_paths():
-        return 0
-    if cooling():
-        print("過去の履歴：Spotifyの制限で休憩中のため、今回は曲情報の取得をお休みします")
-        return 0
-    cache = {}
+def load_tracks_cache():
     if TRACKS_PATH.exists():
         try:
-            cache = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
+            return json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
         except ValueError:
-            cache = {}
-    counts = {}
+            pass
+    return {}
+
+
+def song_key(track, artists):
+    """ページと同じく「曲名＋メインのアーティスト」で同じ曲とみなす"""
+    return ((track or "").strip().lower(), (artists or "").split(" / ")[0].strip().lower())
+
+
+def album_key(album, artists):
+    return ((album or "").strip().lower(), (artists or "").split(" / ")[0].strip().lower()) if album else None
+
+
+def full_info(t, album=None):
+    """/tracks の結果（または /albums の中の曲＋そのアルバム）を tracks.json の形にする"""
+    alb = album or t.get("album") or {}
+    return {
+        "image": pick_image(alb),
+        "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
+        "artist_ids": " / ".join(a.get("id") or "" for a in t.get("artists", [])),
+        "duration_ms": t.get("duration_ms", 0),
+        "album_id": alb.get("id", ""),
+    }
+
+
+def lookup(token, path, what):
+    """1回問い合わせる。成功→結果 / 見つからない→{} / 中断すべき→None"""
+    if not BUDGET.take():
+        return None
+    try:
+        res = api_get(token, path)
+        time.sleep(PACE)
+        return res
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 404):
+            return {}
+        if e.code == 429:
+            hit_limit(e)
+        else:
+            print(f"{what}の取得を中断しました（次回また続きから）: {e.code}")
+    except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
+        print(f"{what}の取得を中断しました（次回また続きから）: {e}")
+    return None
+
+
+def history_songs(cache, rows):
+    """過去の履歴と自動記録を曲ごとにまとめる（再生回数・最後に聴いた日時・曲の番号・アルバム・ジャケ写の有無）"""
+    songs, album_img = {}, {}
+    def add(k, when, tid, akey, image):
+        s = songs.setdefault(k, {"plays": 0, "last": "", "ids": [], "album": None, "image": False})
+        s["plays"] += 1
+        s["last"] = max(s["last"], when)
+        if tid and tid not in s["ids"]:
+            s["ids"].append(tid)
+        s["album"] = s["album"] or akey
+        if image:
+            s["image"] = True
+            if akey:
+                album_img.setdefault(akey, image)
+    for r in rows:                                   # 自動記録（ジャケ写つき）
+        add(song_key(r["track"], r["artists"]), r["played_at"][:19], "", album_key(r["album"], r["artists"]), r["image"])
     ex = excluded_plays()
     for r in history_records():
         tid = r.get("track_id") or ""
-        if ((r.get("played_at") or "")[:19] + "Z", tid) in ex:
+        when = (r.get("played_at") or "")[:19]
+        if (when + "Z", tid) in ex:
             continue   # 除外した再生の曲は調べない（問い合わせの節約）
-        if SPOTIFY_ID.match(tid) and tid not in cache:
-            counts[tid] = counts.get(tid, 0) + 1
-    todo = sorted(counts, key=lambda k: -counts[k])[:max(0, limit)]
-    done = 0
-    for tid in todo:
-        if not BUDGET.take():
-            break
-        try:
-            t = api_get(token, f"/tracks/{tid}")
-        except urllib.error.HTTPError as e:
-            if e.code in (400, 404):
-                cache[tid] = {}          # Spotifyから消えた曲など。次回からは調べない
-                continue
-            if e.code == 429:
-                hit_limit(e)
-            else:
-                print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e.code}")
-            break
-        except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
-            print(f"過去の履歴の曲情報の取得を中断しました（次回また続きから）: {e}")
-            break
-        image, artist_ids = track_extras(t)
-        cache[tid] = {
-            "image": image,
-            "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
-            "artist_ids": artist_ids,
-            "duration_ms": t.get("duration_ms", 0),
-        }
-        done += 1
-        time.sleep(PACE)
-    if done or todo:
+        add(song_key(r.get("track"), r.get("artists")), when, tid if SPOTIFY_ID.match(tid) else "",
+            album_key(r.get("album"), r.get("artists")), (cache.get(tid) or {}).get("image", ""))
+    return songs, album_img
+
+
+def enrich_history(token):
+    """過去の履歴の曲のジャケ写・参加アーティスト・曲の長さを、問い合わせをできるだけ節約して埋める。
+    ① 同じアルバムの別の曲でジャケ写が分かっていれば、問い合わせずにそのジャケ写を使う（参加アーティストなどはあとで）
+    ② よく聴いた曲から（同じ回数なら最近聴いた曲から）1曲ずつ調べる
+    ③ そのアルバムにまだ調べていない曲が2曲以上あれば、アルバムごと1回で調べて全部埋める
+    ④ ジャケ写が全部そろったら、①の曲の参加アーティスト・曲の長さを同じ方法で仕上げる"""
+    if not history_paths():
+        return 0
+    cache = load_tracks_cache()
+    songs, album_img = history_songs(cache, load_rows())
+
+    shared = 0                                      # ①
+    for s in songs.values():
+        if not s["image"] and s["album"] in album_img:
+            for tid in s["ids"]:
+                if tid not in cache:
+                    cache[tid] = {"image": album_img[s["album"]], "partial": 1}
+            s["image"] = True
+            shared += 1
+
+    if cooling():                                   # ①は問い合わせなしなので、休憩中でも行う
+        if shared:
+            TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
+        print(f"過去の履歴：同じアルバムから {shared}曲のジャケ写を設定。Spotifyの制限で休憩中のため、問い合わせはお休みします")
+        REPORT.update(jackets=shared, jacketsLeft=sum(1 for s in songs.values() if not s["image"] and any(t not in cache for t in s["ids"])))
+        return shared
+
+    by_album = {}
+    for k, s in songs.items():
+        if s["album"]:
+            by_album.setdefault(s["album"], []).append(k)
+    def needs(tid, phase):
+        return tid not in cache if phase == 1 else bool((cache.get(tid) or {}).get("partial"))
+    def todo(phase):
+        keys = [k for k, s in songs.items()
+                if (not s["image"] if phase == 1 else True) and any(needs(t, phase) for t in s["ids"])]
+        return sorted(keys, key=lambda k: (songs[k]["plays"], songs[k]["last"]), reverse=True)
+
+    asked = filled = 0
+    stop = False
+    for phase in (1, 2):
+        for k in todo(phase):
+            s = songs[k]
+            tid = next((t for t in s["ids"] if needs(t, phase)), None)
+            if tid is None or (phase == 1 and s["image"]):
+                continue                             # 同じアルバムの問い合わせで埋まった
+            t = lookup(token, f"/tracks/{tid}", "過去の履歴の曲情報")
+            if t is None:
+                stop = True
+                break
+            asked += 1
+            info = full_info(t) if t else {}         # {} はSpotifyから消えた曲。次回からは調べない
+            aid = info.pop("album_id", "")           # アルバムの番号はこの場で使うだけ（保存しない）
+            cache[tid] = info
+            s["image"] = s["image"] or bool(info.get("image"))
+            filled += 1
+            # ③ 同じアルバムに、まだの曲が2曲以上残っていればアルバムごと調べる
+            rest = [g for g in by_album.get(s["album"], []) if g != k
+                    and any(needs(x, 1) or needs(x, 2) for x in songs[g]["ids"])]
+            if len(rest) >= 2 and aid:
+                a = lookup(token, f"/albums/{aid}", "アルバムの曲情報")
+                if a is None:
+                    stop = True
+                    break
+                asked += 1
+                items = ((a.get("tracks") or {}).get("items")) or []
+                by_id = {it.get("id"): it for it in items}
+                by_name = {(it.get("name") or "").strip().lower(): it for it in items}
+                for g in rest:
+                    for x in songs[g]["ids"]:
+                        if needs(x, 1) or needs(x, 2):
+                            it = by_id.get(x) or by_name.get(g[0])
+                            if it:
+                                cache[x] = full_info(it, a)
+                                cache[x].pop("album_id", None)
+                                songs[g]["image"] = songs[g]["image"] or bool(cache[x]["image"])
+                                filled += 1
+        if stop or (phase == 1 and todo(1)):
+            break                                    # ジャケ写がそろうまでは④に進まない
+
+    if shared or asked:
         TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
-    left = max(0, len(counts) - done)
-    print(f"過去の履歴：曲情報 {done}件を取得（残り 約{left:,}曲）")
-    return done
+    left = sum(1 for s in songs.values() if not s["image"] and any(t not in cache for t in s["ids"]))
+    finish = sum(1 for v in cache.values() if (v or {}).get("partial"))
+    print(f"過去の履歴：ジャケ写 {filled + shared}曲分を取得（問い合わせ {asked}回・同じアルバムから {shared}曲）"
+          f" / ジャケ写の残り 約{left:,}曲 / 参加アーティストなどの仕上げ残り 約{finish:,}曲")
+    REPORT.update(jackets=filled + shared, jacketsLeft=left, finishLeft=finish)
+    return filled + shared
 
 
-def artist_play_counts(rows):
-    """アーティストごとのおおよその再生回数（よく聴いた順に調べるため）"""
+def artist_play_counts(rows, last=None):
+    """アーティストごとのおおよその再生回数（よく聴いた順に調べるため）。last を渡すと最後に聴いた日時も入れる"""
     counts = Counter()
+    last = {} if last is None else last
+    def seen(aid, when):
+        if when > last.get(aid, ""):
+            last[aid] = when
     for r in rows:
         for aid in r["artist_ids"].split(" / "):
             if SPOTIFY_ID.match(aid):
                 counts[aid] += 1
+                seen(aid, r["played_at"][:19])
     if history_paths() and TRACKS_PATH.exists():
         try:
             tracks = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
         except ValueError:
             tracks = {}
-        per_track = Counter()
+        per_track, track_last = Counter(), {}
         ex = excluded_plays()
         for r in history_records():
-            if ((r.get("played_at") or "")[:19] + "Z", r.get("track_id") or "") in ex:
+            when = (r.get("played_at") or "")[:19]
+            tid = r.get("track_id") or ""
+            if (when + "Z", tid) in ex:
                 continue
-            per_track[r.get("track_id") or ""] += 1
+            per_track[tid] += 1
+            track_last[tid] = max(track_last.get(tid, ""), when)
         for tid, c in per_track.items():
             for aid in ((tracks.get(tid) or {}).get("artist_ids") or "").split(" / "):
                 if SPOTIFY_ID.match(aid):
                     counts[aid] += c
+                    seen(aid, track_last[tid])
     return counts
 
 
 def artists_needed(rows):
-    """写真をまだ調べていないアーティスト。いま聴いている曲（自動記録）のアーティストを先に、あとはよく聴いた順"""
+    """写真をまだ調べていないアーティスト。いま聴いている曲（自動記録）のアーティストを先に、
+    あとはよく聴いた順、同じ回数なら最近聴いた順"""
     cache = {}
     if ARTISTS_PATH.exists():
         try:
             cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
         except ValueError:
             cache = {}
-    counts = artist_play_counts(rows)
+    last = {}
+    counts = artist_play_counts(rows, last)
     live = {aid for r in rows for aid in r["artist_ids"].split(" / ") if SPOTIFY_ID.match(aid)}
-    return [aid for aid in sorted(counts, key=lambda k: (k not in live, -counts[k])) if aid not in cache]
+    return sorted((aid for aid in counts if aid not in cache),
+                  key=lambda k: (k in live, counts[k], last.get(k, "")), reverse=True)
 
 
 def update_artists(token, rows, limit):
@@ -332,6 +455,7 @@ def update_artists(token, rows, limit):
             cache = {}
     if cooling():
         print("アーティスト写真：Spotifyの制限で休憩中のため、今回はお休みします")
+        REPORT["artistsLeft"] = len(artists_needed(rows))
         return 0
     need = artists_needed(rows)
     got = 0
@@ -358,6 +482,7 @@ def update_artists(token, rows, limit):
     if cache:
         ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     left = sum(1 for aid in need if aid not in cache)
+    REPORT["artistsLeft"] = left
     print(f"アーティスト写真 {got}件を取得（残り 約{left:,}組）")
     return got
 
@@ -438,13 +563,12 @@ def sync():
 
     save_rows(rows)
 
-    # 残りの回数の分け方：アーティスト写真に最大3分の1、残りを過去の曲のジャケ写に（片方が終わればもう片方に全部）
-    artist_backlog = 0 if cooling() else len(artists_needed(rows))
-    history_share = BUDGET.left - min(artist_backlog, BUDGET.left // 3)
-    enrich_history(token, history_share)
+    # 残りの回数の使い方：アーティスト写真を先に、残りを過去の曲のジャケ写に
     got = update_artists(token, rows, BUDGET.left)
+    enrich_history(token)
 
     print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト写真 {got}件")
+    REPORT.update(added=added, looked=looked, artists=got)
 
 
 def main():
@@ -455,7 +579,12 @@ def main():
     now = datetime.now(timezone.utc)
     usage = recent_usage(st, now)
     used24 = sum(n for _, n in usage)
-    BUDGET = Budget(min(PER_RUN, DAILY_BUDGET - used24))
+    try:
+        hours = (now - datetime.fromisoformat(st.get("at", ""))).total_seconds() / 3600
+    except (TypeError, ValueError):
+        hours = 1
+    slots = min(3, max(1, round(hours)))           # GitHubの実行が抜けた時間の分を取り戻す
+    BUDGET = Budget(min(PER_RUN * slots, DAILY_BUDGET - used24))
     print(f"今回の問い合わせ枠 {BUDGET.left}回（直近24時間で {used24}/{DAILY_BUDGET}回 使用済み）")
     try:
         sync()
@@ -469,6 +598,9 @@ def main():
     if BUDGET.used:
         usage.append([now.isoformat(timespec="seconds"), BUDGET.used])
     st["usage"] = usage
+    st["lastRun"] = dict(REPORT, at=now.isoformat(timespec="seconds"), requests=BUDGET.used,
+                         used24=sum(n for _, n in usage), budget=DAILY_BUDGET,
+                         coolingUntil=RATE["until"] or (st.get("cooldownUntil") if cooling() else "") or "")
     if RATE["until"]:
         st["cooldownUntil"] = RATE["until"]
     elif st.get("cooldownUntil") and not cooling():

@@ -333,7 +333,7 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v16"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+VERSION = "v21"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
@@ -420,6 +420,8 @@ def main():
             "at": to_ms(st.get("at")),
             "lastSuccess": to_ms(st.get("lastSuccess")),
             "tokenSince": st.get("tokenSince", ""),
+            "lastRun": dict(st.get("lastRun") or {}, at=to_ms((st.get("lastRun") or {}).get("at")),
+                            coolingUntil=to_ms((st.get("lastRun") or {}).get("coolingUntil"))) if st.get("lastRun") else None,
         },
         "guide": f"https://github.com/{repo}#止まったときの直し方",
         "guideHtml": guide_html,
