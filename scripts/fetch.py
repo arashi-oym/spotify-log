@@ -26,13 +26,17 @@ STATUS_PATH = ROOT / "data" / "status.json"
 DATA = ROOT / "data"                            # Spotifyから取り寄せた過去の履歴は data/history*.csv（いくつあってもOK）
 TRACKS_PATH = ROOT / "data" / "tracks.json"
 EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画像の取得もしない）    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
-HISTORY_LOOKUP_LIMIT = 120                      # 過去の履歴の曲情報を1回に調べる最大件数
-ARTIST_LOOKUP_LIMIT = 60                        # アーティスト写真を1回に調べる最大件数
+# --- Spotifyへの問い合わせ回数の上限 ---
+# 2026/9/28〜10/15 の記録では、曲情報・アーティスト写真の問い合わせが「24時間で600回」に達すると毎回
+# 429（多すぎ）で止められ、最初の問い合わせから24時間たつまで待たされていた（再生履歴の取得は別枠で、止められない）。
+# そこで直近24時間の回数を自分で数え、上限の少し手前で止まるようにし、1時間ごとに均等に使う。
+DAILY_QUOTA = 600        # Spotifyの上限（観測値）
+DAILY_BUDGET = 570       # 自分で守る上限（観測値の95%。手動の Run workflow が重なっても超えないように）
+PER_RUN = 24             # 1回（1時間）に使う最大回数。24回 × 24時間 ≒ 570回
 PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
 MIN_COOLDOWN = 30 * 60                          # 429で止められたとき、最低これだけ（秒）補完を休む
 FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
 API = "https://api.spotify.com/v1"
-LOOKUP_LIMIT = 40  # 1回の実行で補完する最大件数（曲・アーティストそれぞれ）
 SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
 
 
@@ -110,6 +114,34 @@ def save_status(st):
 RATE = {"until": None}   # 429で止められたときの「この時刻までは補完を休む」
 
 
+class Budget:
+    """今回の実行で使ってよい問い合わせ回数"""
+    def __init__(self, n=0):
+        self.left, self.used = max(0, n), 0
+
+    def take(self):
+        if self.left <= 0:
+            return False
+        self.left -= 1
+        self.used += 1
+        return True
+
+
+BUDGET = Budget(0)
+
+
+def recent_usage(st, now):
+    """status.json に残した「いつ何回問い合わせたか」のうち、直近24時間の分"""
+    keep = []
+    for at, n in st.get("usage", []):
+        try:
+            if now - datetime.fromisoformat(at) < timedelta(hours=24):
+                keep.append([at, int(n)])
+        except (TypeError, ValueError):
+            continue
+    return keep
+
+
 def cooling():
     """前回429で止められていて、まだ休む時間中なら True"""
     until = RATE["until"] or load_status().get("cooldownUntil")
@@ -122,7 +154,7 @@ def cooling():
 
 
 def hit_limit(e):
-    """429を受けたら、Spotifyが指定した時間（最低30分）だけ補完を休む"""
+    """429を受けたら、Spotifyが指定した時間（最低30分）だけ補完を休む（回数を数えているので、ふだんは起きない想定）"""
     try:
         wait = int(e.headers.get("Retry-After") or 0)
     except (TypeError, ValueError):
@@ -195,7 +227,7 @@ def history_records():
             yield from csv.DictReader(f)
 
 
-def enrich_history(token):
+def enrich_history(token, limit):
     """過去の履歴（history.csv）の曲について、ジャケ写・参加アーティスト・曲の長さを少しずつ調べて tracks.json に保存する。
     よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
     if not history_paths():
@@ -217,9 +249,11 @@ def enrich_history(token):
             continue   # 除外した再生の曲は調べない（問い合わせの節約）
         if SPOTIFY_ID.match(tid) and tid not in cache:
             counts[tid] = counts.get(tid, 0) + 1
-    todo = sorted(counts, key=lambda k: -counts[k])[:HISTORY_LOOKUP_LIMIT]
+    todo = sorted(counts, key=lambda k: -counts[k])[:max(0, limit)]
     done = 0
     for tid in todo:
+        if not BUDGET.take():
+            break
         try:
             t = api_get(token, f"/tracks/{tid}")
         except urllib.error.HTTPError as e:
@@ -245,7 +279,7 @@ def enrich_history(token):
         time.sleep(PACE)
     if done or todo:
         TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
-    left = max(0, len(counts) - len(todo))
+    left = max(0, len(counts) - done)
     print(f"過去の履歴：曲情報 {done}件を取得（残り 約{left:,}曲）")
     return done
 
@@ -275,8 +309,21 @@ def artist_play_counts(rows):
     return counts
 
 
-def update_artists(token, rows):
-    """アーティストの写真を、よく聴いたアーティストから順に調べて artists.json に保存する"""
+def artists_needed(rows):
+    """写真をまだ調べていないアーティスト。いま聴いている曲（自動記録）のアーティストを先に、あとはよく聴いた順"""
+    cache = {}
+    if ARTISTS_PATH.exists():
+        try:
+            cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
+        except ValueError:
+            cache = {}
+    counts = artist_play_counts(rows)
+    live = {aid for r in rows for aid in r["artist_ids"].split(" / ") if SPOTIFY_ID.match(aid)}
+    return [aid for aid in sorted(counts, key=lambda k: (k not in live, -counts[k])) if aid not in cache]
+
+
+def update_artists(token, rows, limit):
+    """アーティストの写真を、artists_needed の順に調べて artists.json に保存する"""
     cache = {}
     if ARTISTS_PATH.exists():
         try:
@@ -286,10 +333,11 @@ def update_artists(token, rows):
     if cooling():
         print("アーティスト写真：Spotifyの制限で休憩中のため、今回はお休みします")
         return 0
-    counts = artist_play_counts(rows)
-    need = [aid for aid in sorted(counts, key=lambda k: -counts[k]) if aid not in cache]
+    need = artists_needed(rows)
     got = 0
-    for aid in need[:ARTIST_LOOKUP_LIMIT]:
+    for aid in need[:max(0, limit)]:
+        if not BUDGET.take():
+            break
         try:
             a = api_get(token, f"/artists/{aid}")
         except urllib.error.HTTPError as e:
@@ -309,7 +357,7 @@ def update_artists(token, rows):
         time.sleep(PACE)
     if cache:
         ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    left = sum(1 for aid in counts if aid not in cache)
+    left = sum(1 for aid in need if aid not in cache)
     print(f"アーティスト写真 {got}件を取得（残り 約{left:,}組）")
     return got
 
@@ -368,7 +416,9 @@ def sync():
         if (not r["image"] or not r["artist_ids"]) and SPOTIFY_ID.match(tid) and tid not in missing:
             missing.append(tid)
     looked = 0
-    for tid in ([] if cooling() else missing[:LOOKUP_LIMIT]):
+    for tid in ([] if cooling() else missing):
+        if not BUDGET.take():
+            break
         try:
             t = api_get(token, f"/tracks/{tid}")
         except urllib.error.HTTPError as e:
@@ -387,9 +437,12 @@ def sync():
         time.sleep(PACE)
 
     save_rows(rows)
-    enrich_history(token)
 
-    got = update_artists(token, rows)
+    # 残りの回数の分け方：アーティスト写真に最大3分の1、残りを過去の曲のジャケ写に（片方が終わればもう片方に全部）
+    artist_backlog = 0 if cooling() else len(artists_needed(rows))
+    history_share = BUDGET.left - min(artist_backlog, BUDGET.left // 3)
+    enrich_history(token, history_share)
+    got = update_artists(token, rows, BUDGET.left)
 
     print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト写真 {got}件")
 
@@ -397,8 +450,13 @@ def sync():
 def main():
     """成功・失敗の結果を data/status.json に残し、ページに表示できるようにする。
     終了コード: 0 = 成功 または 一時的なエラー（自動で再試行）、2 = 手当てが必要なエラー"""
+    global BUDGET
     st = load_status()
     now = datetime.now(timezone.utc)
+    usage = recent_usage(st, now)
+    used24 = sum(n for _, n in usage)
+    BUDGET = Budget(min(PER_RUN, DAILY_BUDGET - used24))
+    print(f"今回の問い合わせ枠 {BUDGET.left}回（直近24時間で {used24}/{DAILY_BUDGET}回 使用済み）")
     try:
         sync()
     except SyncError as e:
@@ -408,6 +466,9 @@ def main():
         print(f"[{e.code}] {e.message}\n{e.detail}")
         sys.exit(0 if e.code in ("temporary", "not_configured") else 2)   # 初期設定前は失敗扱いにしない
 
+    if BUDGET.used:
+        usage.append([now.isoformat(timespec="seconds"), BUDGET.used])
+    st["usage"] = usage
     if RATE["until"]:
         st["cooldownUntil"] = RATE["until"]
     elif st.get("cooldownUntil") and not cooling():

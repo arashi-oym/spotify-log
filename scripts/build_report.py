@@ -333,7 +333,7 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v15"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+VERSION = "v16"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
