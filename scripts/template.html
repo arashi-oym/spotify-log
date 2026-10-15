@@ -423,7 +423,8 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]) .alert.err{background:rgba(255,80,100,.12);color:#ffb3bf;border-color:rgba(255,80,100,.3);}
   :root:not([data-theme="light"]) .alert.warn{background:rgba(255,150,60,.12);color:#ffcc99;border-color:rgba(255,150,60,.3);}
-  :root:not([data-theme="light"]) .alert .acts a,:root:not([data-theme="light"]) .alert .acts button{background:rgba(0,0,0,.2);}
+  :root:not([data-theme="light"]) .alert .acts a,:root:not([data-theme="light"]) .alert .acts a.primary{background:var(--corp);color:var(--on-corp);border-color:var(--corp);}
+.alert .acts button{background:rgba(0,0,0,.2);}
 }
 :root[data-theme="dark"] .alert.err{background:rgba(255,80,100,.12);color:#ffb3bf;border-color:rgba(255,80,100,.3);}
 :root[data-theme="dark"] .alert .acts a,:root[data-theme="dark"] .alert .acts button{background:rgba(0,0,0,.2);}
@@ -442,6 +443,7 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
   background:var(--surface-strong);border:1.5px solid var(--corp-border);color:var(--corp-ink);font-size:13px;font-weight:700;
   transition:background .2s,transform .25s var(--ease-spring);
 }
+.btn-sub{text-decoration:none;}
 .btn-sub:hover{background:var(--corp-pale);transform:scale(1.03);}
 .text-link{font-size:12px;color:var(--text-sub);}
 .alert .acts button{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:980px;font-size:12.5px;font-weight:700;
@@ -818,6 +820,12 @@ body.modal-lock #toTop{display:none;}
   .search-scope{padding:0 14px 10px;}
 }
 
+.date-row{display:flex;gap:6px;align-items:stretch;}
+.date-row .inp{flex:1;min-width:0;}
+.chip-sm{flex:none;border:1.5px solid var(--corp-border);background:var(--surface-strong);color:var(--corp-ink);
+  border-radius:10px;padding:0 13px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.chip-sm:hover{background:var(--corp-pale);}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 </style>
 </head>
@@ -850,8 +858,8 @@ body.modal-lock #toTop{display:none;}
         <button type="button" class="btn" id="applyMonth">表示する</button>
       </div>
       <div class="pm pm-range" style="display:none">
-        <div class="field"><label class="lbl" for="dFrom">開始日</label><input class="inp" type="date" id="dFrom"></div>
-        <div class="field"><label class="lbl" for="dTo">終了日</label><input class="inp" type="date" id="dTo"></div>
+        <div class="field"><label class="lbl" for="dFrom">開始日</label><div class="date-row"><input class="inp" type="date" id="dFrom"><button type="button" class="chip-sm" data-today="dFrom">今日</button></div></div>
+        <div class="field"><label class="lbl" for="dTo">終了日</label><div class="date-row"><input class="inp" type="date" id="dTo"><button type="button" class="chip-sm" data-today="dTo">今日</button></div></div>
         <button type="button" class="btn" id="applyRange">この期間を表示</button>
       </div>
       <p class="pick-note" id="pickNote"></p>
@@ -941,11 +949,15 @@ body.modal-lock #toTop{display:none;}
                 <button type="button" class="btn-sub" data-guide="top">📘 使い方・直し方を見る</button>
                 <a class="text-link" id="actionsLink" href="#" target="_blank" rel="noopener">実行の記録（GitHub）</a>
               </div>
+              <div class="status-actions">
+                <a class="btn-sub" href="setup.html">🔗 Spotifyと連携し直す</a>
+                <a class="btn-sub" href="import.html">📥 過去の再生履歴を取り込む</a>
+              </div>
               <div class="dl-box">
                 <div class="dl-title">ダウンロード</div>
-                <a class="dl-item" id="dlZip" href="downloads/spotify-log.zip" download="spotify-log.zip">
+                <a class="dl-item" id="dlZip" href="downloads/listening-log-kit.zip" download="listening-log-kit.zip">
                   <span class="dl-ico" aria-hidden="true">🗂</span>
-                  <span class="dl-text"><b>ファイル一式（zip）</b><small>再認証.command・説明書・プログラム。Macのフォルダをなくしたときに</small></span>
+                  <span class="dl-text"><b>ファイル一式（zip）</b><small>説明書・プログラム一式。作り直すときや、友人に渡すときに</small></span>
                 </a>
                 <a class="dl-item" id="dlCsv" href="downloads/plays.csv" download="spotify-plays.csv">
                   <span class="dl-ico" aria-hidden="true">📄</span>
@@ -1146,7 +1158,11 @@ body.modal-lock #toTop{display:none;}
   }
   function onTab(e){
     var b = e.target.closest('button'); if(!b) return;
-    if (b.dataset.pick) { $('ui').classList.toggle('pick-open'); tabs(); return; }
+    if (b.dataset.pick) {
+      $('ui').classList.toggle('pick-open');
+      if ($('ui').classList.contains('pick-open') && state.pickMode === 'range') resetRangeDefaults();   // 開いたときも今日基準に
+      tabs(); return;
+    }
     state.preset = b.dataset.preset; state.custom = null; state.all = false;
     $('ui').classList.remove('pick-open'); render();
   }
@@ -1184,18 +1200,34 @@ body.modal-lock #toTop{display:none;}
   $('selMonth').addEventListener('change', applyLabel);
   fillMonths(false);
   function isoDate(t){var j=jst(t);return j.y+'-'+String(j.m).padStart(2,'0')+'-'+String(j.d).padStart(2,'0');}
-  $('dFrom').min = $('dTo').min = isoDate(FIRST);
-  $('dFrom').max = $('dTo').max = isoDate(NOW);
-  $('dFrom').value = isoDate(NOW-13*DAY); $('dTo').value = isoDate(NOW);
+  // ページを開いたままでも「今日」がずれないよう、その場で現在時刻を取り直す
+  function liveNow(){ return Date.now(); }
+  function liveIsoToday(){ return isoDate(liveNow()); }
+  // 開始日・終了日の初期値（開始日＝今日の14日前、終了日＝今日）を、パネルを開くたびに今日基準で入れ直す
+  function resetRangeDefaults(){
+    var today = liveNow();
+    $('dFrom').min = $('dTo').min = isoDate(FIRST);
+    $('dFrom').max = $('dTo').max = isoDate(today);
+    $('dFrom').value = isoDate(today - 13*DAY);
+    $('dTo').value = isoDate(today);
+  }
+  resetRangeDefaults();
   $('pickNote').textContent = '記録があるのは ' + isoDate(FIRST).replace(/-/g,'/') + ' 以降です。';
 
   $('pickModeSeg').addEventListener('click', function(e){
     var b = e.target.closest('button[data-pm]'); if(!b) return;
     state.pickMode = b.dataset.pm;
+    if (b.dataset.pm === 'range') resetRangeDefaults();   // 「日付で指定」を開くたびに、今日を基準にした期間に戻す
     [].forEach.call($('pickModeSeg').children, function(x){x.classList.toggle('on', x===b);});
     [].forEach.call(document.querySelectorAll('.pm'), function(el){
       el.style.display = el.classList.contains('pm-'+state.pickMode) ? 'contents' : 'none';
     });
+  });
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-today]'); if (!b) return;
+    var el = $(b.dataset.today), today = liveIsoToday();
+    el.max = today; if (el.value > today) el.value = today;
+    el.value = today;
   });
   function applyCustom(r){
     if (r.y) { $('selYear').value = r.y; fillMonths(false); if (r.m) { $('selMonth').value = r.m; applyLabel(); } }
@@ -1320,25 +1352,28 @@ body.modal-lock #toTop{display:none;}
   $('stLast').textContent = stamp(LAST_PLAY);
   var notice = '';
   var FIX = {
-    token_expired: {key:'A', cls:'err', title:'Spotifyとの連携が切れています', body:'連携の期限（約半年）が来たか、連携が解除されました。Macで次の手順を行うと元に戻ります。',
-      steps:['Macで「spotify-log」フォルダの「再認証.command」をダブルクリック','Spotifyの画面で「同意する」を押す','自動で開くGitHubの画面で ⌘+V を押し、「Update secret」を押す']},
+    not_configured: {key:'setup', cls:'info', title:'ようこそ！あと少しで記録が始まります', body:'Spotifyとの連携がまだ済んでいません。下のボタンから、スマホだけで設定できます。',
+      steps:['「Spotifyと連携する」を押す','画面の手順どおりに Client ID・Client Secret を入力して連携','表示されたカギ（リフレッシュトークン）をGitHubに登録'], link:['setup.html','🔗 Spotifyと連携する']},
+    token_expired: {key:'A', cls:'err', title:'Spotifyとの連携が切れています', body:'連携の期限（約半年）が来たか、連携が解除されました。スマホで次の手順を行うと元に戻ります。',
+      steps:['下の「Spotifyと連携する」を押す','Client ID・Client Secret を入力して「同意する」','表示されたカギをコピーし、GitHubで「上書きする」から貼り付けて「Update secret」'], link:['setup.html','🔗 Spotifyと連携する']},
     bad_client: {key:'B', cls:'err', title:'Spotifyのアプリ情報が正しくありません', body:'GitHubに登録した Client ID か Client Secret が、Spotifyのものと一致していません。',
       steps:['Spotify for Developers で Client ID と Client Secret を確認','GitHubの「Settings」→「Secrets and variables」→「Actions」で2つを入れ直す']},
     forbidden: {key:'C', cls:'err', title:'Spotifyにアクセスを拒否されました', body:'Spotify Premium の契約が切れているか、Spotify側の設定が変わった可能性があります。',
       steps:['Spotify Premium の契約が続いているか確認','Spotify for Developers の「User Management」に自分のメールアドレスがあるか確認']},
     unknown: {key:'fix', cls:'err', title:'記録中に想定していないエラーが起きました', body:'詳しい内容はGitHubのActionsの画面で確認できます。', steps:[]}
   };
-  function box(cls, ico, title, body, steps, withGuide){
+  function box(cls, ico, title, body, steps, withGuide, link){
     return '<div class="alert '+cls+'" role="status"><span class="ico" aria-hidden="true">'+ico+'</span><div><strong>'+esc(title)+'</strong>'+esc(body)
       + (steps && steps.length ? '<ol>'+steps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol>' : '')
-      + (withGuide ? '<div class="acts"><button type="button" data-guide="'+esc(withGuide)+'">📘 詳しい直し方を見る</button><a href="'+esc(ACTIONS)+'" target="_blank" rel="noopener">実行の記録（GitHub）</a></div>' : '')
+      + (withGuide || link ? '<div class="acts">' + (link ? '<a class="primary" href="'+esc(link[0])+'">'+esc(link[1])+'</a>' : '')
+          + (withGuide ? '<button type="button" data-guide="'+esc(withGuide)+'">📘 詳しい手順を見る</button><a href="'+esc(ACTIONS)+'" target="_blank" rel="noopener">実行の記録（GitHub）</a>' : '') + '</div>' : '')
       + '</div></div>';
   }
   var stale = ST.lastSuccess && NOW - ST.lastSuccess > 3*3600000;
   if (ST.state === 'error') {
     var f = FIX[ST.code] || FIX.unknown;
-    notice += box(f.cls, '⚠️', f.title, f.body + (ST.at ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, f.key);
-    $('stNext').textContent = '直すまで記録が止まります'; $('stNext').classList.add('bad');
+    notice += box(f.cls, ST.code === 'not_configured' ? '👋' : '⚠️', f.title, f.body + (ST.at && ST.code !== 'not_configured' ? '（' + stamp(ST.at) + ' 時点）' : ''), f.steps, f.key, f.link);
+    $('stNext').textContent = ST.code === 'not_configured' ? '設定が終わると始まります' : '直すまで記録が止まります'; $('stNext').classList.add('bad');
   } else if (ST.state === 'temporary' && stale) {
     notice += box('warn', '⏳', 'Spotifyに接続できない状態が続いています', 'Spotify側の一時的な不具合のことが多く、ふつうは自動で直ります。1日以上続く場合は、詳しい直し方を確認してください。', [], 'D');
   } else if (stale) {
@@ -1356,7 +1391,7 @@ body.modal-lock #toTop{display:none;}
       $('stExpire').classList.add('bad');
       notice += box('info', '🔑', 'Spotifyとの連携の期限が近づいています',
         (left > 0 ? 'あと' + left + '日ほどで' : 'まもなく') + '連携が切れます。切れる前に次の手順で更新しておくと、記録が途切れません。',
-        FIX.token_expired.steps, 'A');
+        FIX.token_expired.steps, 'A', FIX.token_expired.link);
     }
   }
   $('notice').innerHTML = notice;

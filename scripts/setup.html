@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Spotifyと連携する</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span><h1>Spotifyと連携する</h1></div>
+  <p class="lead">My Listening Log がSpotifyの再生履歴を読み取れるようにする設定です。スマホだけで完了します。初めての設定にも、半年ごとの連携のやり直しにも使います。</p>
+
+  <div id="msg"></div>
+
+  <!-- 連携前 -->
+  <div id="viewStart">
+    <section class="card">
+      <div class="step"><b>1</b><h2>このページのURLをSpotifyに登録</h2></div>
+      <p>Spotify for Developers で作ったアプリの「Settings」→「<b>Redirect URIs</b>」に、次のURLを登録して保存してください（登録済みなら飛ばしてOK）。</p>
+      <div class="copyrow"><code id="redirect"></code><button type="button" class="mini" data-copy="redirect">コピー</button></div>
+      <p class="note">あわせて「Web API」にチェックが入っているかも確認してください。</p>
+      <a class="btn sub" href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify for Developers を開く</a>
+    </section>
+
+    <section class="card">
+      <div class="step"><b>2</b><h2>Client ID と Client Secret を入力</h2></div>
+      <p>Spotify for Developers のアプリの「Settings」に表示されています。</p>
+      <label for="cid">Client ID</label>
+      <input type="text" id="cid" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="latin">
+      <label for="secret">Client Secret</label>
+      <input type="password" id="secret" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="toggle" id="showSecret">表示する</button>
+      <p class="note">入力した内容は、このスマホ（ブラウザ）とSpotifyのあいだでだけ使われ、どこにも保存・送信されません。</p>
+      <button type="button" class="btn" id="go" disabled>Spotifyと連携する</button>
+    </section>
+  </div>
+
+  <!-- 連携後 -->
+  <div id="viewDone" hidden>
+    <section class="card">
+      <div class="step"><b>3</b><h2>連携のカギをGitHubに登録</h2></div>
+      <p>連携できました。下の「<b>リフレッシュトークン</b>」をコピーして、GitHubに登録してください。</p>
+      <label for="token">リフレッシュトークン</label>
+      <textarea id="token" rows="4" readonly></textarea>
+      <div class="copyrow" style="margin-top:8px"><button type="button" class="btn" id="copyToken" style="margin-top:0">トークンをコピー</button></div>
+
+      <p style="margin-top:16px"><b>初めて設定するとき</b></p>
+      <ol>
+        <li>下のボタンでGitHubを開く</li>
+        <li>「Name」に <code>SPOTIFY_REFRESH_TOKEN</code> と入力 <button type="button" class="mini" data-copy-text="SPOTIFY_REFRESH_TOKEN" style="min-height:30px">名前をコピー</button></li>
+        <li>「Secret」に貼り付けて「Add secret」</li>
+      </ol>
+      <a class="btn sub" id="ghNew" target="_blank" rel="noopener">GitHubで新しく登録する</a>
+
+      <p style="margin-top:18px"><b>連携をやり直すとき（半年ごと）</b></p>
+      <ol>
+        <li>下のボタンでGitHubを開く</li>
+        <li>入力欄に貼り付けて「Update secret」</li>
+      </ol>
+      <a class="btn sub" id="ghUpdate" target="_blank" rel="noopener">GitHubで上書きする</a>
+    </section>
+
+    <section class="card">
+      <div class="step"><b>4</b><h2>動作確認</h2></div>
+      <p>GitHubの「Actions」→「Spotify再生記録」→「Run workflow」を押し、緑のチェックになれば完了です。押さなくても1時間以内に自動で始まります。</p>
+      <a class="btn sub" id="ghActions" target="_blank" rel="noopener">GitHubのActionsを開く</a>
+      <a class="back" href="./">← 専用ページに戻る</a>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  var REPO = '__REPO__';
+  var SCOPE = 'user-read-recently-played';
+  var KEY = 'mll-setup';
+  var $ = function(id){ return document.getElementById(id); };
+  var redirectUri = location.origin + location.pathname;
+  $('redirect').textContent = redirectUri;
+  $('ghNew').href = 'https://github.com/' + REPO + '/settings/secrets/actions/new';
+  $('ghUpdate').href = 'https://github.com/' + REPO + '/settings/secrets/actions/SPOTIFY_REFRESH_TOKEN';
+  $('ghActions').href = 'https://github.com/' + REPO + '/actions';
+
+  function show(kind, html){ $('msg').innerHTML = html ? '<div class="msg ' + kind + '">' + html + '</div>' : ''; }
+  function copy(text, btn){
+    function done(){ if (!btn) return; var t = btn.textContent; btn.textContent = 'コピーしました'; btn.classList.add('ok'); setTimeout(function(){ btn.textContent = t; btn.classList.remove('ok'); }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    function fallback(){ var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove(); }
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-copy],[data-copy-text]'); if (!b) return;
+    copy(b.dataset.copyText || $(b.dataset.copy).textContent.trim(), b);
+  });
+  function valid(){ $('go').disabled = !($('cid').value.trim().length >= 20 && $('secret').value.trim().length >= 20); }
+  $('cid').addEventListener('input', valid); $('secret').addEventListener('input', valid);
+  $('showSecret').addEventListener('click', function(){
+    var s = $('secret'); s.type = s.type === 'password' ? 'text' : 'password';
+    this.textContent = s.type === 'password' ? '表示する' : '隠す';
+  });
+  function rand(){ var a = new Uint8Array(16); crypto.getRandomValues(a); return Array.prototype.map.call(a, function(x){ return ('0' + x.toString(16)).slice(-2); }).join(''); }
+  function store(v){ try { if (v) sessionStorage.setItem(KEY, JSON.stringify(v)); else sessionStorage.removeItem(KEY); } catch (e) {} }
+  function load(){ try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+
+  // ① Spotifyの同意画面へ
+  $('go').addEventListener('click', function(){
+    var st = rand();
+    store({cid: $('cid').value.trim(), secret: $('secret').value.trim(), state: st});
+    location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+      client_id: $('cid').value.trim(), response_type: 'code', redirect_uri: redirectUri,
+      scope: SCOPE, state: st, show_dialog: 'true'
+    }).toString();
+  });
+
+  // ② 同意後に戻ってきたとき：カギ（リフレッシュトークン）を受け取る
+  var q = new URLSearchParams(location.search);
+  if (q.get('error') || q.get('code')) history.replaceState(null, '', location.pathname);   // URLから一時コードを消す
+  if (q.get('error')) {
+    store(null);
+    show('err', '連携がキャンセルされました（' + q.get('error') + '）。もう一度「Spotifyと連携する」を押してください。');
+    return;
+  }
+  if (!q.get('code')) return;
+  var saved = load();
+  if (!saved || saved.state !== q.get('state')) {
+    store(null);
+    show('err', '連携の途中で情報が失われました。お手数ですが、もう一度最初から行ってください。<br><small>（同じブラウザのまま、タブを閉じずに進めてください）</small>');
+    return;
+  }
+  $('cid').value = saved.cid; valid();
+  show('ok', 'Spotifyから戻ってきました。連携のカギを受け取っています…');
+
+  function exchange(useHeader){
+    var body = new URLSearchParams({grant_type: 'authorization_code', code: q.get('code'), redirect_uri: redirectUri});
+    var headers = {'Content-Type': 'application/x-www-form-urlencoded'};
+    if (useHeader) headers.Authorization = 'Basic ' + btoa(saved.cid + ':' + saved.secret);
+    else { body.set('client_id', saved.cid); body.set('client_secret', saved.secret); }
+    return fetch('https://accounts.spotify.com/api/token', {method: 'POST', headers: headers, body: body.toString()})
+      .then(function(r){ return r.json().then(function(j){ return {ok: r.ok, j: j}; }); });
+  }
+  // まず Client ID/Secret を本文で送る方式、だめなら Authorizationヘッダー方式で受け取る
+  exchange(false).then(function(res){
+    return (!res.ok && /invalid_client/.test(JSON.stringify(res.j))) ? exchange(true) : res;
+  }).then(function(res){
+    store(null);
+    if (!res.ok || !res.j.refresh_token) {
+      var e = (res.j && (res.j.error_description || res.j.error)) || '不明なエラー';
+      if (/invalid_client/.test(JSON.stringify(res.j))) show('err', 'Client ID または Client Secret が正しくありません。Spotify for Developers の画面からコピーし直して、もう一度お試しください。');
+      else if (/redirect/i.test(e)) show('err', 'Redirect URI が登録されていないか、一致していません。手順1のURLを、Spotifyのアプリにそのまま登録してください。');
+      else show('err', 'カギを受け取れませんでした（' + e + '）。もう一度お試しください。');
+      return;
+    }
+    show('ok', '連携できました。手順3に進んでください。');
+    $('viewStart').hidden = true; $('viewDone').hidden = false;
+    $('token').value = res.j.refresh_token;
+  }).catch(function(){
+    store(null);
+    show('err', 'Spotifyに接続できませんでした。通信状態を確認して、もう一度お試しください。<br><small>何度やってもうまくいかない場合は、説明書の「パソコンで連携する方法」をご覧ください。</small>');
+  });
+  $('copyToken').addEventListener('click', function(){ copy($('token').value, this); });
+})();
+</script>
+</body>
+</html>

@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "data" / "plays.csv"
 ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
-HISTORY_PATH = ROOT / "data" / "history.csv"   # Spotifyから取り寄せた過去の履歴（あれば）
+DATA = ROOT / "data"                            # Spotifyから取り寄せた過去の履歴は data/history*.csv（いくつあってもOK）
 TRACKS_PATH = ROOT / "data" / "tracks.json"
 EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画像の取得もしない）    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
 HISTORY_LOOKUP_LIMIT = 120                      # 過去の履歴の曲情報を1回に調べる最大件数
@@ -37,7 +37,7 @@ SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
 
 
 class SyncError(Exception):
-    """code: token_expired / bad_client / forbidden / temporary / unknown"""
+    """code: not_configured / token_expired / bad_client / forbidden / temporary / unknown"""
     def __init__(self, code, message, detail=""):
         super().__init__(message)
         self.code, self.message, self.detail = code, message, detail
@@ -57,7 +57,8 @@ def get_access_token():
     secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "").strip()
     refresh = os.environ.get("SPOTIFY_REFRESH_TOKEN", "").strip()
     if not (cid and secret and refresh):
-        raise SyncError("bad_client", "GitHubのSecret（SPOTIFY_CLIENT_ID など）が登録されていないか、名前が違います。")
+        missing = [n for n, v in (("SPOTIFY_CLIENT_ID", cid), ("SPOTIFY_CLIENT_SECRET", secret), ("SPOTIFY_REFRESH_TOKEN", refresh)) if not v]
+        raise SyncError("not_configured", "初期設定がまだ終わっていません（GitHubのSecretに " + "、".join(missing) + " がありません）。")
     basic = base64.b64encode(f"{cid}:{secret}".encode()).decode()
     req = urllib.request.Request(
         "https://accounts.spotify.com/api/token",
@@ -182,10 +183,22 @@ def excluded_plays():
     return out
 
 
+def history_paths():
+    """取り寄せた過去の履歴のファイル（history.csv、history-20261015.csv など）"""
+    return sorted(p for p in DATA.glob("history*.csv") if p.is_file())
+
+
+def history_records():
+    """過去の履歴のすべての行（ファイルをまたいで順に）"""
+    for path in history_paths():
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            yield from csv.DictReader(f)
+
+
 def enrich_history(token):
     """過去の履歴（history.csv）の曲について、ジャケ写・参加アーティスト・曲の長さを少しずつ調べて tracks.json に保存する。
     よく聴いた曲から順に調べるので、ランキング上位から先に画像がそろっていく。"""
-    if not HISTORY_PATH.exists():
+    if not history_paths():
         return 0
     if cooling():
         print("過去の履歴：Spotifyの制限で休憩中のため、今回は曲情報の取得をお休みします")
@@ -197,14 +210,13 @@ def enrich_history(token):
         except ValueError:
             cache = {}
     counts = {}
-    with HISTORY_PATH.open(newline="", encoding="utf-8-sig") as f:
-        ex = excluded_plays()
-        for r in csv.DictReader(f):
-            tid = r.get("track_id") or ""
-            if ((r.get("played_at") or "")[:19] + "Z", tid) in ex:
-                continue   # 除外した再生の曲は調べない（問い合わせの節約）
-            if SPOTIFY_ID.match(tid) and tid not in cache:
-                counts[tid] = counts.get(tid, 0) + 1
+    ex = excluded_plays()
+    for r in history_records():
+        tid = r.get("track_id") or ""
+        if ((r.get("played_at") or "")[:19] + "Z", tid) in ex:
+            continue   # 除外した再生の曲は調べない（問い合わせの節約）
+        if SPOTIFY_ID.match(tid) and tid not in cache:
+            counts[tid] = counts.get(tid, 0) + 1
     todo = sorted(counts, key=lambda k: -counts[k])[:HISTORY_LOOKUP_LIMIT]
     done = 0
     for tid in todo:
@@ -245,18 +257,17 @@ def artist_play_counts(rows):
         for aid in r["artist_ids"].split(" / "):
             if SPOTIFY_ID.match(aid):
                 counts[aid] += 1
-    if HISTORY_PATH.exists() and TRACKS_PATH.exists():
+    if history_paths() and TRACKS_PATH.exists():
         try:
             tracks = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
         except ValueError:
             tracks = {}
         per_track = Counter()
-        with HISTORY_PATH.open(newline="", encoding="utf-8-sig") as f:
-            ex = excluded_plays()
-            for r in csv.DictReader(f):
-                if ((r.get("played_at") or "")[:19] + "Z", r.get("track_id") or "") in ex:
-                    continue
-                per_track[r.get("track_id") or ""] += 1
+        ex = excluded_plays()
+        for r in history_records():
+            if ((r.get("played_at") or "")[:19] + "Z", r.get("track_id") or "") in ex:
+                continue
+            per_track[r.get("track_id") or ""] += 1
         for tid, c in per_track.items():
             for aid in ((tracks.get(tid) or {}).get("artist_ids") or "").split(" / "):
                 if SPOTIFY_ID.match(aid):
@@ -395,7 +406,7 @@ def main():
                    "code": e.code, "message": e.message, "at": now.isoformat(timespec="seconds")})
         save_status(st)
         print(f"[{e.code}] {e.message}\n{e.detail}")
-        sys.exit(0 if e.code == "temporary" else 2)
+        sys.exit(0 if e.code in ("temporary", "not_configured") else 2)   # 初期設定前は失敗扱いにしない
 
     if RATE["until"]:
         st["cooldownUntil"] = RATE["until"]

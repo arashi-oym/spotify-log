@@ -17,7 +17,7 @@ JST = timezone(timedelta(hours=9))
 CSV_PATH = ROOT / "data" / "plays.csv"
 ARTISTS_PATH = ROOT / "data" / "artists.json"
 STATUS_PATH = ROOT / "data" / "status.json"
-HISTORY_PATH = ROOT / "data" / "history.csv"
+DATA = ROOT / "data"                               # 取り寄せた過去の履歴は data/history*.csv（いくつあってもOK）
 TRACKS_PATH = ROOT / "data" / "tracks.json"
 EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（身に覚えのない再生など）
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
@@ -26,16 +26,6 @@ DOCS = ROOT / "docs"
 DOWNLOADS = DOCS / "downloads"
 WORKFLOW = ROOT / ".github" / "workflows" / "spotify.yml"
 
-# Macで使う「再認証.command」の中身（ダウンロード用のzipに入れる）
-COMMAND = """#!/bin/bash
-# Spotifyとの連携をやり直すためのファイルです。ダブルクリックで実行します。
-cd "$(dirname "$0")"
-python3 scripts/auth.py
-echo ""
-read -n 1 -s -r -p "（何かキーを押すとこの画面を閉じます）"
-echo ""
-osascript -e 'tell application "Terminal" to close front window' >/dev/null 2>&1 &
-"""
 
 
 def read_json(path):
@@ -45,6 +35,9 @@ def read_json(path):
         except ValueError:
             pass
     return {}
+
+
+SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
 
 
 def read_csv(path, source):
@@ -63,18 +56,78 @@ def read_csv(path, source):
                 "album": r.get("album") or "",
                 "image": r.get("image") or "", "artist_ids": r.get("artist_ids") or "",
                 "ms": int(float(r.get("duration_ms") or 0)), "src": source,
+                "has_id": bool(SPOTIFY_ID.match(r.get("track_id") or "")),   # 曲の番号つき（拡張ストリーミング履歴・自動記録）
             })
     return rows
 
 
+def history_paths():
+    return sorted(p for p in DATA.glob("history*.csv") if p.is_file())
+
+
+def norm(text):
+    return re.sub(r"\s+", " ", text or "").strip().casefold()
+
+
+def base_title(text):
+    """「In The Dark - From the Netflix Series…」「Wait So Long (Why Do I Have To)」→ 本来の曲名部分
+    （取り寄せたデータの種類によって、曲名の付け方が少し違うため）"""
+    return re.split(r" - | \(| \[| feat\. ", norm(text))[0]
+
+
+def merge_history(live, hist, spans):
+    """取り寄せた過去の履歴のうち、いまの記録（live）と重ならない再生だけを残す。
+    ・曲の番号つき（拡張ストリーミング履歴）：再生が終わった時刻（秒）と曲が一致すれば同じ再生
+      （Spotifyの自動記録と拡張ストリーミング履歴は、同じ再生なら同じ時刻になる）
+    ・番号なし（アカウントデータ・分単位）：拡張ストリーミング履歴がある期間（spans）は使わない
+      （拡張の方が正確で、プライベートセッションも見分けられるため）。
+      それ以外の期間は、前後1分以内に同じ曲（または同じアーティスト）の再生があれば同じ再生とみなす
+    いまの記録が止まっていた期間や、記録しきれなかった再生は、過去の履歴で埋まる。"""
+    keys = {(r["dt"], r["track_id"]) for r in live}      # 時刻（秒）と曲の番号
+    named = {(r["dt"], norm(r["track"])) for r in live}   # 時刻（秒）と曲名（番号が違っても同じ曲なら同じ再生）
+    near = {}                                              # 分 → その前後に終わった再生（曲名・アーティスト）
+    def mark(r):
+        m = int(r["dt"].timestamp()) // 60
+        for k in (m - 1, m, m + 1):
+            near.setdefault(k, set()).update({"t:" + base_title(r["track"]), "a:" + norm(r["artists"].split(" / ")[0])})
+    for r in live:
+        mark(r)
+    precise = [r for r in hist if r["has_id"]]
+    rough = [r for r in hist if not r["has_id"]]
+    out, rough_seen = [], set()
+    for r in precise:                      # 番号つきを優先
+        if (r["dt"], r["track_id"]) in keys or (r["dt"], norm(r["track"])) in named:
+            continue
+        keys.add((r["dt"], r["track_id"]))
+        mark(r)
+        out.append(r)
+    for r in rough:
+        if any(a <= r["dt"] <= b for a, b in spans):
+            continue                       # 拡張ストリーミング履歴の期間内
+        m = int(r["dt"].timestamp()) // 60
+        here = near.get(m, ())
+        if "t:" + base_title(r["track"]) in here or "a:" + norm(r["artists"].split(" / ")[0]) in here:
+            continue                       # いまの記録と重なる
+        key = (m, norm(r["track"]))
+        if key in rough_seen:              # 別のファイルで取り込み済み
+            continue
+        rough_seen.add(key)
+        out.append(r)
+    return out
+
+
 def load_rows():
-    """いまの記録（plays.csv）と、取り寄せた過去の履歴（history.csv）を合わせる。
-    重なる期間は二重に数えないよう、過去の履歴は「いまの記録の最初の再生」より前の分だけを使う。"""
+    """いまの記録（plays.csv）と、取り寄せた過去の履歴（history*.csv）を合わせる。
+    同じ再生を二重に数えないよう、merge_history で重なりを取り除く。"""
     live = read_csv(CSV_PATH, "live")
-    hist = read_csv(HISTORY_PATH, "history")
-    if live and hist:
-        start = min(r["dt"] for r in live)
-        hist = [r for r in hist if r["dt"] < start]
+    hist, spans = [], []
+    for path in history_paths():
+        rows = read_csv(path, "history")
+        ids = [r["dt"] for r in rows if r["has_id"]]
+        if ids:
+            spans.append((min(ids), max(ids)))   # 拡張ストリーミング履歴がカバーしている期間
+        hist += rows
+    hist = merge_history(live, hist, spans)
     tracks = read_json(TRACKS_PATH)
     for r in hist + live:
         info = tracks.get(r["track_id"]) or {}
@@ -222,6 +275,8 @@ def markdown_to_html(md):
                 anchors[m.group(1)] = aid
             if text == "止まったときの直し方":
                 anchors["fix"] = aid
+            if text.startswith("はじめての設定"):
+                anchors["setup"] = aid
             out.append(f'<h{level} id="{html.escape(aid)}">{inline(text)}</h{level}>')
             i += 1
         elif line.strip() == "---":
@@ -265,7 +320,7 @@ def guide():
 
 # ---------------- ダウンロード用ファイル ----------------
 # ページから「ファイル一式（zip）」と「再生記録（CSV）」を取得できるようにする。
-# zip の中身は、Macの spotify-log フォルダと同じ構成にしている。
+# zip の中身は、GitHubのリポジトリと同じ構成にしている。
 
 FIXED_TIME = (2026, 1, 1, 0, 0, 0)   # 中身が同じなら zip も同じになるよう日時を固定
 
@@ -277,17 +332,20 @@ def add_file(z, arcname, data, executable=False):
     z.writestr(info, data)
 
 
+SCRIPTS = Path(__file__).resolve().parent
+KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
+             "setup.html", "import.html", "page-common.css"]
+
+
 def build_downloads(rows):
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
-    files = [("README.md", README)]
-    for name in ("fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html"):
-        files.append((f"scripts/{name}", Path(__file__).resolve().parent / name))
-    files.append(("workflow/spotify.yml", WORKFLOW))
-    with zipfile.ZipFile(DOWNLOADS / "spotify-log.zip", "w") as z:
+    # ファイル一式：GitHubのリポジトリと同じ構成（個人の記録 data/ は含めない）
+    files = [("README.md", README), (".gitignore", ROOT / ".gitignore"), (".github/workflows/spotify.yml", WORKFLOW)]
+    files += [(f"scripts/{name}", SCRIPTS / name) for name in KIT_FILES]
+    with zipfile.ZipFile(DOWNLOADS / "listening-log-kit.zip", "w") as z:
         for arc, path in files:
             if path.exists():
-                add_file(z, f"spotify-log/{arc}", path.read_bytes())
-        add_file(z, "spotify-log/再認証.command", COMMAND.encode("utf-8"), executable=True)
+                add_file(z, f"listening-log-kit/{arc}", path.read_bytes())
 
     # 再生記録（過去の履歴も含む全件）：Excelで文字化けしないよう BOM付きUTF-8、日時は日本時間
     with (DOWNLOADS / "plays.csv").open("w", newline="", encoding="utf-8-sig") as f:
@@ -296,6 +354,16 @@ def build_downloads(rows):
         for r in rows:
             w.writerow([r["dt"].astimezone(JST).strftime("%Y-%m-%d %H:%M:%S"), r["track"], r["artists"], r["album"],
                         round(r["ms"] / 1000), "自動記録" if r["src"] == "live" else "取り寄せた履歴"])
+
+
+def write_tool_pages(repo):
+    """連携ページ（setup.html）と履歴の取り込みページ（import.html）を docs に置く"""
+    css = (SCRIPTS / "page-common.css").read_text(encoding="utf-8")
+    for name in ("setup.html", "import.html"):
+        src = SCRIPTS / name
+        if src.exists():
+            page = src.read_text(encoding="utf-8").replace("/*__CSS__*/", css, 1).replace("__REPO__", repo)
+            (DOCS / name).write_text(page, encoding="utf-8")
 
 
 def main():
@@ -321,7 +389,7 @@ def main():
 
     st = read_json(STATUS_PATH)
     guide_html, guide_anchors = guide()
-    repo = os.environ.get("GITHUB_REPOSITORY", "arashi-oym/spotify-log")
+    repo = os.environ.get("GITHUB_REPOSITORY", "your-name/listening-log")
     data = {
         "songs": songs,
         "p": plays,
@@ -339,13 +407,15 @@ def main():
         "guideHtml": guide_html,
         "guideAnchors": guide_anchors,
         "actions": f"https://github.com/{repo}/actions",
-        "downloads": {"zip": "downloads/spotify-log.zip", "csv": "downloads/plays.csv", "rows": len(rows)},
+        "setup": "setup.html", "importPage": "import.html",
+        "downloads": {"zip": "downloads/listening-log-kit.zip", "csv": "downloads/plays.csv", "rows": len(rows)},
     }
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     DOCS.mkdir(exist_ok=True)
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")
     html = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
     (DOCS / "index.html").write_text(html, encoding="utf-8")
+    write_tool_pages(repo)
     build_downloads(rows)
     print(f"docs/index.html を更新しました（再生 {len(rows):,}件 / 曲 {len(songs):,}曲）")
 

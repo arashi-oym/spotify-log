@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""【Spotifyとの連携をやり直すとき】
-「再認証.command」をダブルクリックすると、このファイルが動きます。
+"""【パソコンで連携する場合の予備の方法】
+ふだんは専用ページの「Spotifyと連携する」ページ（setup.html）を使ってください（スマホだけでできます）。
+うまくいかないときだけ、パソコン（Mac・Windows）で  python3 scripts/auth.py  （Windowsは  py scripts\auth.py ）を実行します。
+その場合は Spotify のアプリの Redirect URIs に  http://127.0.0.1:8888/callback  も登録してください。
 
 1. ブラウザでSpotifyの同意画面が開く →「同意する」を押す
 2. 新しいリフレッシュトークンが自動でコピーされ、GitHubの設定画面が開く
 3. 貼り付けて「Update secret」を押せば完了
 
-Client ID と Client Secret は初回だけ入力すれば、この Mac に保存されて次回から聞かれません。
+Client ID と Client Secret は初回だけ入力すれば、このパソコンに保存されて次回から聞かれません。
 """
 import base64
 import json
@@ -23,8 +25,8 @@ from pathlib import Path
 
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
 SCOPE = "user-read-recently-played"
-DEFAULT_REPO = "arashi-oym/spotify-log"
-CONFIG = Path.home() / ".spotify-log.json"   # Client ID などの保存先（このMacの中だけ）
+DEFAULT_REPO = ""
+CONFIG = Path.home() / ".spotify-log.json"   # Client ID などの保存先（このパソコンの中だけ）
 
 
 def say(msg=""):
@@ -52,10 +54,12 @@ def ask_config(cfg):
     say("初回の設定です。Spotify for Developers の画面（My Listening Log → Settings）を見ながら入力してください。")
     cfg["client_id"] = input("  Client ID を貼り付けて Enter: ").strip()
     cfg["client_secret"] = input("  Client Secret を貼り付けて Enter: ").strip()
-    repo = input(f"  GitHubのリポジトリ名（そのまま Enter で {DEFAULT_REPO}）: ").strip()
-    cfg["repo"] = repo or cfg.get("repo") or DEFAULT_REPO
+    repo = ""
+    while "/" not in repo:
+        repo = input("  GitHubのリポジトリ名（例: yourname/listening-log）: ").strip() or cfg.get("repo", "")
+    cfg["repo"] = repo
     save_config(cfg)
-    say("  → この Mac に保存しました。次回からは入力不要です。\n")
+    say("  → このパソコンに保存しました。次回からは入力不要です。\n")
     return cfg
 
 
@@ -85,7 +89,7 @@ def get_code(client_id):
     try:
         server = HTTPServer(("127.0.0.1", 8888), Handler)
     except OSError:
-        sys.exit("⚠️ ほかの「再認証」がまだ開いています。開いているターミナルの画面を閉じてから、もう一度実行してください。")
+        sys.exit("⚠️ ほかの連携処理がまだ動いています。開いている黒い画面を閉じてから、もう一度実行してください。")
 
     url = "https://accounts.spotify.com/authorize?" + urllib.parse.urlencode({
         "client_id": client_id, "response_type": "code", "redirect_uri": REDIRECT_URI,
@@ -97,7 +101,7 @@ def get_code(client_id):
         server.handle_request()
     server.server_close()
     if "error" in result:
-        sys.exit("⚠️ 同意がキャンセルされました。もう一度「再認証.command」を開いてやり直してください。")
+        sys.exit("⚠️ 同意がキャンセルされました。もう一度実行してやり直してください。")
     return result["code"]
 
 
@@ -115,11 +119,14 @@ def get_refresh_token(cfg, code):
 
 
 def copy_to_clipboard(text):
-    try:
-        subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
-        return True
-    except (OSError, subprocess.CalledProcessError):
-        return False
+    """Mac は pbcopy、Windows は clip でコピーする"""
+    for cmd in (["pbcopy"], ["clip"]):
+        try:
+            subprocess.run(cmd, input=text.encode("utf-16le" if cmd == ["clip"] else "utf-8"), check=True)
+            return True
+        except (OSError, subprocess.CalledProcessError):
+            continue
+    return False
 
 
 def main():
@@ -139,7 +146,7 @@ def main():
         if "invalid_client" in detail:
             CONFIG.unlink(missing_ok=True)
             sys.exit("⚠️ 保存されていた Client ID / Client Secret が正しくありませんでした。\n"
-                     "   保存内容を消したので、もう一度「再認証.command」を開いて入力し直してください。")
+                     "   保存内容を消したので、もう一度実行して入力し直してください。")
         sys.exit("⚠️ トークンの取得に失敗しました。\n" + detail)
 
     say("\n② 新しいリフレッシュトークンを取得しました。")
@@ -149,7 +156,7 @@ def main():
     if copy_to_clipboard(token):
         say("   → 自動でコピーしました（まだ何も貼り付けなくてOKです）。\n")
         say("③ GitHubの設定画面を開きます。次の2つだけ行ってください。")
-        say("   ・大きな入力欄をクリックして ⌘+V（貼り付け）")
+        say("   ・大きな入力欄をクリックして貼り付け（Mac は ⌘+V、Windows は Ctrl+V）")
         say("   ・緑の「Update secret」を押す")
         time.sleep(1.5)
         webbrowser.open(secret_url)

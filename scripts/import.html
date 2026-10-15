@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>過去の再生履歴を取り込む</title>
+<style>/*__CSS__*/</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span><h1>過去の再生履歴を取り込む</h1></div>
+  <p class="lead">Spotifyから取り寄せた再生履歴（my_spotify_data.zip）を、専用ページで使える形に変換します。変換はこのスマホの中だけで行われ、ファイルがどこかに送られることはありません。</p>
+
+  <div id="msg"></div>
+
+  <section class="card">
+    <div class="step"><b>1</b><h2>Spotifyから届いたファイルを選ぶ</h2></div>
+    <p>メールのリンクからダウンロードした <b>my_spotify_data.zip</b> を、そのまま選んでください（中のJSONファイルを選んでもOKです）。</p>
+    <input type="file" id="file" accept=".zip,.json,application/zip,application/json" multiple hidden>
+    <button type="button" class="btn" id="pick">ファイルを選ぶ</button>
+    <p class="note">「アカウントデータ」（約5日で届く・直近1年分）と「拡張ストリーミング履歴」（最大30日で届く・全期間）のどちらにも対応しています。両方あるときは、全期間の「拡張ストリーミング履歴」を使ってください。</p>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <div class="step"><b>2</b><h2>変換結果を確認して保存</h2></div>
+    <dl class="kv" id="summary"></dl>
+    <button type="button" class="btn" id="save">履歴ファイルを保存する</button>
+    <p class="note" style="margin-top:10px">保存されるファイル名：<b id="fname"></b><br>前に取り込んだ履歴があっても上書きされず、別のファイルとして加わります。重なる期間は二重に数えないよう自動で調整されます。</p>
+  </section>
+
+  <section class="card" id="upload" hidden>
+    <div class="step"><b>3</b><h2>GitHubの data フォルダにアップロード</h2></div>
+    <ol>
+      <li>下のボタンでGitHubのアップロード画面を開く（data フォルダに入れる画面が開きます）</li>
+      <li>「choose your files」を押して、いま保存した <b class="fname"></b> を選ぶ</li>
+      <li>下の緑の「Commit changes」を押す</li>
+    </ol>
+    <a class="btn sub" id="ghUpload" target="_blank" rel="noopener">GitHubのアップロード画面を開く</a>
+    <p class="note" style="margin-top:10px">アップロードのあと、1時間以内（または「Run workflow」を押した直後）に専用ページへ反映されます。過去の曲のジャケ写は、1時間ごとに少しずつ取得されます。</p>
+    <a class="back" href="./">← 専用ページに戻る</a>
+  </section>
+</div>
+
+<script>
+(function(){
+  var REPO = '__REPO__';
+  var $ = function(id){ return document.getElementById(id); };
+  $('ghUpload').href = 'https://github.com/' + REPO + '/upload/main/data';
+  var csvText = '';
+  var today = new Date(Date.now() + 9*3600000).toISOString().slice(0, 10).replace(/-/g, '');
+  var FILE = 'history-' + today + '.csv';   // 日付つきの名前にして、前の取り込みを上書きしない
+  $('fname').textContent = FILE;
+  Array.prototype.forEach.call(document.querySelectorAll('.fname'), function(e){ e.textContent = FILE; });
+  function show(kind, html){ $('msg').innerHTML = html ? '<div class="msg ' + kind + '">' + html + '</div>' : ''; }
+  function fmt(n){ return Number(n).toLocaleString('ja-JP'); }
+  $('pick').addEventListener('click', function(){ $('file').click(); });
+
+  // Spotifyの2種類の形式を、同じ形（1再生＝1行）にそろえる
+  var EXT = /Streaming_History_Audio_.*\.json$/i, ACC = /StreamingHistory_?music_.*\.json$/i;
+  function fromExtended(recs, out){
+    recs.forEach(function(r){
+      var uri = r.spotify_track_uri || '';
+      if (uri.indexOf('spotify:track:') !== 0 || r.incognito_mode) return;   // 曲以外・プライベートセッションは除く
+      if ((r.ms_played || 0) < 30000 || !r.ts) return;                      // 30秒以上で「1回」
+      out.push({t: r.ts.slice(0, 19) + 'Z', id: uri.split(':').pop(), track: r.master_metadata_track_name || '',
+        artist: r.master_metadata_album_artist_name || '', album: r.master_metadata_album_album_name || '', ms: r.ms_played});
+    });
+  }
+  function fromAccount(recs, out){
+    recs.forEach(function(r){
+      if ((r.msPlayed || 0) < 30000 || !r.endTime || !r.trackName) return;
+      out.push({t: r.endTime.replace(' ', 'T').slice(0, 16) + ':00Z', id: '', track: r.trackName, artist: r.artistName || '', album: '', ms: r.msPlayed});
+    });
+  }
+  function csvCell(v){ v = String(v == null ? '' : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+
+  $('file').addEventListener('change', function(){
+    var files = Array.prototype.slice.call(this.files || []); this.value = '';
+    if (!files.length) return;
+    show('ok', '読み込んでいます…（大きなファイルは数十秒かかります）');
+    $('result').hidden = true; $('upload').hidden = true;
+    var ext = [], acc = [];
+    Promise.all(files.map(function(f){
+      if (/\.zip$/i.test(f.name)) {
+        return JSZip.loadAsync(f).then(function(z){
+          var jobs = [];
+          z.forEach(function(path, entry){
+            var name = path.split('/').pop();
+            if (EXT.test(name)) jobs.push(entry.async('string').then(function(s){ ext.push(JSON.parse(s)); }));
+            else if (ACC.test(name)) jobs.push(entry.async('string').then(function(s){ acc.push(JSON.parse(s)); }));
+          });
+          return Promise.all(jobs);
+        });
+      }
+      return f.text().then(function(s){ if (EXT.test(f.name)) ext.push(JSON.parse(s)); else if (ACC.test(f.name)) acc.push(JSON.parse(s)); });
+    })).then(function(){
+      var rows = [], kind;
+      if (ext.length) { ext.forEach(function(a){ fromExtended(a, rows); }); kind = '拡張ストリーミング履歴（全期間）'; }
+      else if (acc.length) { acc.forEach(function(a){ fromAccount(a, rows); }); kind = 'アカウントデータ（直近1年分）'; }
+      else { show('err', '再生履歴のファイルが見つかりませんでした。Spotifyから届いた my_spotify_data.zip を選んでください。'); return; }
+      if (!rows.length) { show('err', '30秒以上再生した曲の記録が見つかりませんでした。'); return; }
+      rows.sort(function(a, b){ return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
+      var seen = {}, uniq = [], longest = {};
+      rows.forEach(function(r){ var k = r.id || (r.track + '\u0000' + r.artist); if (r.ms > (longest[k] || 0)) longest[k] = r.ms; });
+      rows.forEach(function(r){ var k = r.t + '\u0000' + (r.id || r.track + r.artist); if (!seen[k]) { seen[k] = 1; uniq.push(r); } });
+      var lines = ['played_at,track_id,track,artists,album,duration_ms,ms_played'];
+      uniq.forEach(function(r){
+        var k = r.id || (r.track + '\u0000' + r.artist);
+        lines.push([r.t, r.id, r.track, r.artist, r.album, longest[k], r.ms].map(csvCell).join(','));
+      });
+      csvText = lines.join('\n') + '\n';
+      var songs = {}; uniq.forEach(function(r){ songs[r.id || r.track + '\u0000' + r.artist] = 1; });
+      function jstDay(t){ var d = new Date(new Date(t).getTime() + 9*3600000); return d.getUTCFullYear() + '/' + (d.getUTCMonth()+1) + '/' + d.getUTCDate(); }
+      $('summary').innerHTML = '<dt>ファイルの種類</dt><dd>' + kind + '</dd><dt>期間</dt><dd>' + jstDay(uniq[0].t) + ' 〜 ' + jstDay(uniq[uniq.length-1].t) + '</dd>'
+        + '<dt>再生回数</dt><dd>' + fmt(uniq.length) + '回</dd><dt>曲</dt><dd>' + fmt(Object.keys(songs).length) + '曲</dd>'
+        + '<dt>ファイルの大きさ</dt><dd>約' + (csvText.length / 1048576).toFixed(1) + 'MB</dd>';
+      show('ok', '変換できました。手順2で保存してください。');
+      $('result').hidden = false;
+    }).catch(function(e){
+      show('err', 'ファイルを読み込めませんでした（' + (e && e.message || e) + '）。Spotifyから届いたファイルをそのまま選んでください。');
+    });
+  });
+
+  $('save').addEventListener('click', function(){
+    var blob = new Blob(['﻿' + csvText], {type: 'text/csv'});
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = FILE;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    $('upload').hidden = false;
+    $('upload').scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+})();
+</script>
+</body>
+</html>
