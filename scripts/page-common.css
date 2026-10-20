@@ -1,7 +1,8 @@
 /* 設定ページ（setup.html・import.html）共通のデザイン。build_report.py が各ページに埋め込みます */
 :root{
-  --font-display:'Outfit','Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;
-  --font-body:'Noto Sans JP','Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --font-display:'Outfit','Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
+  /* 文字の種類ごとに Noto の兄弟フォントを重ね、どの言語でも見た目をそろえる（ページに出てきた文字の分だけ読み込まれる） */
+  --font-body:'Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
   --corp:#1DB954; --corp-light:#1ED760; --corp-deep:#0B5C2C; --corp-ink:#0F7A3A; --on-corp:#07190E;
   --corp-pale:rgba(29,185,84,0.10); --corp-border:rgba(29,185,84,0.24);
   --bg:#f1f2ee; --surface:#ffffff; --field:#fbfcfa;

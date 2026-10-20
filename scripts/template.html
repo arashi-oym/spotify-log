@@ -9,7 +9,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+Arabic:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    DESIGN TOKENS — Spotify グリーン
@@ -17,8 +18,9 @@
    文字に使う緑は読みやすさのため深め（--corp-ink）にしている
 ============================================================ */
 :root{
-  --font-display:'Outfit','Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif;
-  --font-body:'Noto Sans JP','Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --font-display:'Outfit','Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
+  /* 文字の種類ごとに Noto の兄弟フォントを重ね、どの言語でも見た目をそろえる（ページに出てきた文字の分だけ読み込まれる） */
+  --font-body:'Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
 
   --corp:#1DB954; --corp-light:#1ED760; --corp-deep:#0B5C2C; --corp-ink:#0F7A3A;
   --on-corp:#07190E;
