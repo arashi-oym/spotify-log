@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+Arabic:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;700&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+Arabic:wght@400;500;700&family=Noto+Sans+Hebrew:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    DESIGN TOKENS — Spotify グリーン
@@ -18,9 +18,10 @@
    文字に使う緑は読みやすさのため深め（--corp-ink）にしている
 ============================================================ */
 :root{
-  --font-display:'Outfit','Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
-  /* 文字の種類ごとに Noto の兄弟フォントを重ね、どの言語でも見た目をそろえる（ページに出てきた文字の分だけ読み込まれる） */
-  --font-body:'Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Noto Sans Symbols 2','Hiragino Sans','Yu Gothic',sans-serif;
+  --font-display:'Outfit','Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Hiragino Sans','Yu Gothic','Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
+  /* 文字の種類ごとに Noto の兄弟フォントを重ね、どの言語でも見た目をそろえる（ページに出てきた文字の分だけ読み込まれる）。
+     絵文字は端末のカラー絵文字で出す（記号用の白黒フォントを入れると、🏆などが白黒になるため入れない） */
+  --font-body:'Noto Sans','Noto Sans JP','Noto Sans KR','Noto Sans SC','Noto Sans TC','Noto Sans Thai','Noto Sans Arabic','Noto Sans Hebrew','Noto Sans Devanagari','Hiragino Sans','Yu Gothic','Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
 
   --corp:#1DB954; --corp-light:#1ED760; --corp-deep:#0B5C2C; --corp-ink:#0F7A3A;
   --on-corp:#07190E;
