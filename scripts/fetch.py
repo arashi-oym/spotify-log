@@ -32,7 +32,8 @@ EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画
 # そこで直近24時間の回数を自分で数え、上限の少し手前で止まるようにし、1時間ごとに均等に使う。
 DAILY_QUOTA = 600        # Spotifyの上限（観測値）
 DAILY_BUDGET = 590       # 自分で守る上限（観測値の98%）。回数は1回ずつ正確に数え、実行も1つずつ順番なので超えない
-PER_RUN = 25             # 1回（1時間）に使う最大回数。前回から時間が空いたときは、その分（最大3時間分）まとめて使う
+PER_RUN = 25             # 1時間あたりに使う回数。実行は1時間に2回なので、前回からの経過時間に合わせて配分する（30分なら約12回、最大3時間分）
+BACKFILL_PAGES = 3       # 取りこぼしの可能性があるとき、「さらに前の50曲」を取りに行く最大回数（1日の上限とは別枠）
 PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
 MIN_COOLDOWN = 30 * 60                          # 429で止められたとき、最低これだけ（秒）補完を休む
 FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
@@ -498,32 +499,65 @@ def sync():
 
     rows = load_rows()
     seen = {r["played_at"] for r in rows}
+    last_recorded = max(seen) if seen else ""        # 前回までの記録で、いちばん新しい再生
     known = {}  # track_id -> (image, artist_ids)
     added = 0
 
-    for it in items:
-        t = it.get("track")
-        played_at = (it.get("played_at") or "")[:19]
-        if not t or len(played_at) < 19:
-            continue
-        played_at += "Z"
-        tid = t.get("id") or t.get("uri") or t.get("name", "")
-        image, artist_ids = track_extras(t)
-        known[tid] = (image, artist_ids)
-        if played_at in seen:
-            continue
-        seen.add(played_at)
-        rows.append({
-            "played_at": played_at,
-            "track_id": tid,
-            "track": t.get("name", ""),
-            "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
-            "album": (t.get("album") or {}).get("name", ""),
-            "duration_ms": t.get("duration_ms", 0),
-            "image": image,
-            "artist_ids": artist_ids,
-        })
-        added += 1
+    def take(batch):
+        """受け取った再生を記録に足す。いちばん古い再生の日時を返す"""
+        nonlocal added
+        oldest = ""
+        for it in batch:
+            t = it.get("track")
+            played_at = (it.get("played_at") or "")[:19]
+            if not t or len(played_at) < 19:
+                continue
+            played_at += "Z"
+            oldest = played_at if not oldest or played_at < oldest else oldest
+            tid = t.get("id") or t.get("uri") or t.get("name", "")
+            image, artist_ids = track_extras(t)
+            known[tid] = (image, artist_ids)
+            if played_at in seen:
+                continue
+            seen.add(played_at)
+            rows.append({
+                "played_at": played_at,
+                "track_id": tid,
+                "track": t.get("name", ""),
+                "artists": " / ".join(a.get("name", "") for a in t.get("artists", [])),
+                "album": (t.get("album") or {}).get("name", ""),
+                "duration_ms": t.get("duration_ms", 0),
+                "image": image,
+                "artist_ids": artist_ids,
+            })
+            added += 1
+        return oldest
+
+    oldest = take(items)
+
+    # --- 取りこぼしの検知 ---
+    # 受け取った50曲が前回の記録と1曲も重ならなければ、そのあいだに聴いた曲がこぼれた可能性がある。
+    # まず「さらに前の50曲」を取りに行き（1日の上限とは別枠）、それでも重ならなければ期間を記録する
+    gap = None
+    if last_recorded and len(items) >= 50 and oldest and oldest > last_recorded:
+        pages = 0
+        while oldest > last_recorded and pages < BACKFILL_PAGES:
+            pages += 1
+            before = int(datetime.fromisoformat(oldest.replace("Z", "+00:00")).timestamp() * 1000)
+            try:
+                more = api_get(token, f"/me/player/recently-played?limit=50&before={before}").get("items", [])
+            except (urllib.error.HTTPError, urllib.error.URLError, socket.timeout, TimeoutError):
+                break
+            got = take(more)
+            if not got or got >= oldest:
+                break                                    # これ以上前は返ってこない
+            oldest = got
+        if oldest > last_recorded:
+            gap = {"from": last_recorded, "to": oldest, "found": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+            print(f"⚠️ 取りこぼしの可能性：{last_recorded} 〜 {oldest} のあいだの再生が取れていない可能性があります")
+        else:
+            print(f"取りこぼしの可能性があったため前の分を取りに行き、すべて取り戻しました（{pages}回）")
+    REPORT["gap"] = gap
 
     # --- 画像などが欠けている行を補完 ---
     def fill(tid, image, artist_ids):
@@ -583,8 +617,8 @@ def main():
         hours = (now - datetime.fromisoformat(st.get("at", ""))).total_seconds() / 3600
     except (TypeError, ValueError):
         hours = 1
-    slots = min(3, max(1, round(hours)))           # GitHubの実行が抜けた時間の分を取り戻す
-    BUDGET = Budget(min(PER_RUN * slots, DAILY_BUDGET - used24))
+    share = round(PER_RUN * min(3, max(0.25, hours)))   # 経過時間に合わせて配分（GitHubの実行が抜けた分も最大3時間分まで取り戻す）
+    BUDGET = Budget(min(share, DAILY_BUDGET - used24))
     print(f"今回の問い合わせ枠 {BUDGET.left}回（直近24時間で {used24}/{DAILY_BUDGET}回 使用済み）")
     try:
         sync()
@@ -595,6 +629,9 @@ def main():
         print(f"[{e.code}] {e.message}\n{e.detail}")
         sys.exit(0 if e.code in ("temporary", "not_configured") else 2)   # 初期設定前は失敗扱いにしない
 
+    if REPORT.get("gap"):
+        st.setdefault("gaps", []).append(REPORT["gap"])   # 欠けているかもしれない期間（取り寄せた履歴で埋まると、ページ側で自動的に消える）
+        st["gaps"] = st["gaps"][-50:]
     if BUDGET.used:
         usage.append([now.isoformat(timespec="seconds"), BUDGET.used])
     st["usage"] = usage

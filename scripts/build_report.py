@@ -116,6 +116,35 @@ def merge_history(live, hist, spans):
     return out
 
 
+REMIND_DAYS = 180   # 取り込み済みの履歴の最終日から、この日数がたったら「取り寄せの時期」を知らせる（連携のやり直しと同じ半年ごと）
+
+
+def history_spans():
+    """取り込んだ「拡張ストリーミング履歴」がカバーしている期間（曲の番号つきの行の最初〜最後）"""
+    spans = []
+    for path in history_paths():
+        ids = [r["dt"] for r in read_csv(path, "history") if r["has_id"]]
+        if ids:
+            spans.append((min(ids), max(ids)))
+    return spans
+
+
+def fetch_reminder(st):
+    """取り寄せのお知らせ用：取り込み済みの最終日と、まだ埋まっていない「欠けているかもしれない期間」"""
+    spans = history_spans()
+    def covered(g):
+        try:
+            a = datetime.fromisoformat(g["from"].replace("Z", "+00:00"))
+            b = datetime.fromisoformat(g["to"].replace("Z", "+00:00"))
+        except (KeyError, ValueError):
+            return True
+        return any(x <= a and b <= y for x, y in spans)
+    gaps = [g for g in st.get("gaps", []) if not covered(g)]
+    until = max((y for _, y in spans), default=None)
+    return {"historyUntil": until.isoformat() if until else None, "remindDays": REMIND_DAYS,
+            "gaps": [{"from": to_ms(g["from"].replace("Z", "+00:00")), "to": to_ms(g["to"].replace("Z", "+00:00"))} for g in gaps]}
+
+
 def load_rows():
     """いまの記録（plays.csv）と、取り寄せた過去の履歴（history*.csv）を合わせる。
     同じ再生を二重に数えないよう、merge_history で重なりを取り除く。"""
@@ -333,7 +362,7 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v23"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+VERSION = "v24"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
@@ -420,6 +449,7 @@ def main():
             "at": to_ms(st.get("at")),
             "lastSuccess": to_ms(st.get("lastSuccess")),
             "tokenSince": st.get("tokenSince", ""),
+            "fetch": fetch_reminder(st),
             "lastRun": dict(st.get("lastRun") or {}, at=to_ms((st.get("lastRun") or {}).get("at")),
                             coolingUntil=to_ms((st.get("lastRun") or {}).get("coolingUntil"))) if st.get("lastRun") else None,
         },

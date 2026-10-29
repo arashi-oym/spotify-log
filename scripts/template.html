@@ -122,6 +122,12 @@ button{font-family:inherit;}
 .logo-text{font-family:var(--font-display);font-size:.98rem;font-weight:700;letter-spacing:-.01em;color:var(--dark);white-space:nowrap;}
 .scope-tag{font-size:10px;font-weight:700;color:var(--corp-ink);background:var(--corp-pale);border:1px solid var(--corp-border);border-radius:980px;padding:2px 9px;white-space:nowrap;}
 .tb-spacer{flex:1 1 auto;}
+/* 取り寄せのお知らせ：上部バーの小さな札（ランキング・分析の表示位置は動かさない） */
+.fetch-pill{display:inline-flex;align-items:center;gap:4px;flex:none;font-size:11px;font-weight:700;line-height:1;white-space:nowrap;text-decoration:none;
+  color:#8a3800;background:rgba(201,80,0,.10);border:1px solid currentColor;border-radius:980px;padding:5px 9px;}
+.fetch-pill:focus-visible{outline:2px solid var(--corp);outline-offset:2px;}
+.fetch-list{margin:4px 0 0;padding-left:1.2em;font-size:12px;}
+.st-note{font-size:12px;color:var(--text-sub);margin-top:6px;}
 .icon-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--corp-border);background:var(--surface-strong);
   color:var(--corp-ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;margin-left:8px;}
 .icon-btn:hover{background:var(--corp-pale);}
@@ -437,6 +443,8 @@ select.inp{cursor:pointer;padding-right:30px;background-image:url("data:image/sv
 :root[data-theme="dark"] .alert.err{background:rgba(255,80,100,.12);color:#ffb3bf;border-color:rgba(255,80,100,.3);}
 :root[data-theme="dark"] .alert .acts a,:root[data-theme="dark"] .alert .acts button{background:rgba(0,0,0,.2);}
 :root[data-theme="dark"] .alert.warn{background:rgba(255,150,60,.12);color:#ffcc99;border-color:rgba(255,150,60,.3);}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fetch-pill{color:#ffcc99;background:rgba(255,150,60,.14);}}
+:root[data-theme="dark"] .fetch-pill{color:#ffcc99;background:rgba(255,150,60,.14);}
 .status dd.bad{color:#c95000;}
 
 /* ============================================================
@@ -847,6 +855,7 @@ body.modal-lock #toTop{display:none;}
       <span class="logo-text">My Listening Log</span>
       <span class="scope-tag">Spotify</span>
     </div>
+    <a class="fetch-pill" id="fetchPill" href="#statusCard" hidden><span aria-hidden="true">📥</span><span id="fetchPillText">取り寄せ時期</span></a>
     <span class="tb-spacer"></span>
     <div class="seg" id="periodSegDesk" role="tablist" aria-label="集計期間"></div>
     <button type="button" class="icon-btn" id="searchOpen" aria-label="曲・アーティストを検索"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="13" y1="13" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -958,6 +967,17 @@ body.modal-lock #toTop{display:none;}
             <dt>過去曲のジャケ写</dt><dd id="stRunJackets">―</dd>
             <dt>問い合わせ</dt><dd id="stRunReq">―</dd>
           </dl>
+          <div class="st-sub" id="fetchSec">過去の再生履歴の取り寄せ</div>
+          <dl class="status">
+            <dt>取り込み済み</dt><dd id="fetchUntil">―</dd>
+            <dt>次の取り寄せ</dt><dd id="fetchNext">―</dd>
+            <dt>欠けた可能性</dt><dd id="fetchGaps">なし</dd>
+          </dl>
+          <p class="st-note">Spotifyの自動記録には、もともと入らない再生があります。取り寄せた履歴を取り込むと、その分と欠けた期間がまとめて埋まり、お知らせも自動で消えます。</p>
+          <div class="status-actions">
+            <a class="btn-sub" href="https://www.spotify.com/account/privacy/" target="_blank" rel="noopener">Spotifyで請求する</a>
+            <a class="btn-sub" href="import.html">📥 取り寄せた履歴を取り込む</a>
+          </div>
           <details class="acc" id="supportAcc">
             <summary>説明書・ダウンロード</summary>
             <div class="acc-body">
@@ -1381,6 +1401,29 @@ body.modal-lock #toTop{display:none;}
     $('stLast').innerHTML = '<button type="button" class="st-song" data-song="' + lastIdx + '">' + esc(lastSong.t || '―') + '</button>'
       + '<br><small>' + esc((lastSong.a || '') + '・' + when(LAST_PLAY)) + '</small>';
   }
+  // 取り寄せのお知らせ：取り込み済みの履歴の最終日から半年たったら、または欠けた可能性のある期間があれば出す
+  (function(){
+    var F = ST.fetch || {}, gaps = F.gaps || [];
+    var until = F.historyUntil ? Date.parse(F.historyUntil) : null;
+    var nextAt = until != null ? until + (F.remindDays || 180) * DAY : null;
+    function day(t){ return when(t).replace(/\d{1,2}:\d{2}$/, ''); }
+    $('fetchUntil').textContent = until != null ? day(until) + 'まで' : 'まだありません';
+    $('fetchNext').innerHTML = nextAt == null ? '<small>履歴を取り込むと表示します</small>'
+      : esc(day(nextAt) + 'ごろ') + (nextAt <= NOW ? ' <small>（時期です）</small>' : '');
+    if (gaps.length) {
+      $('fetchGaps').innerHTML = gaps.length + '件<ul class="fetch-list">' + gaps.slice(-5).map(function(g){
+        return '<li>' + esc(when(g.from)) + ' 〜 ' + esc(when(g.to)) + '</li>'; }).join('') + '</ul>';
+    }
+    var due = (nextAt != null && nextAt <= NOW) || gaps.length > 0;
+    if (due) {
+      $('fetchPill').hidden = false;
+      $('fetchPillText').textContent = gaps.length ? '欠けた期間あり' : '取り寄せ時期';
+      $('fetchPill').addEventListener('click', function(e){
+        e.preventDefault();
+        $('fetchSec').scrollIntoView({behavior: 'smooth', block: 'start'});
+      });
+    }
+  })();
   // 直近の更新（1時間ごとの実行で何が更新されたか）
   (function(){
     var R = ST.lastRun, rows = document.querySelectorAll('#statusCard .run');
