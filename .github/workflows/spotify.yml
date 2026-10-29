@@ -2,7 +2,7 @@ name: Spotify再生記録
 
 on:
   schedule:
-    - cron: "17,47 * * * *"   # 毎時17分ごろに自動で実行
+    - cron: "17,47 * * * *"   # 毎時17分と47分ごろに自動で実行
   workflow_dispatch:        # 手動で実行するボタン（Run workflow）
 
 permissions:
