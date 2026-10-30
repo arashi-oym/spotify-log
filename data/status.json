@@ -4,8 +4,8 @@
  "state": "ok",
  "code": "",
  "message": "",
- "at": "2026-10-30T12:33:54+00:00",
- "lastSuccess": "2026-10-30T12:33:54+00:00",
+ "at": "2026-10-30T12:54:46+00:00",
+ "lastSuccess": "2026-10-30T12:54:46+00:00",
  "usage": [
   [
    "2026-10-29T16:12:26+00:00",
@@ -34,20 +34,24 @@
   [
    "2026-10-30T12:33:54+00:00",
    28
+  ],
+  [
+   "2026-10-30T12:54:46+00:00",
+   9
   ]
  ],
  "lastRun": {
   "gap": null,
-  "artistsLeft": 4,
-  "jackets": 0,
-  "jacketsLeft": 1137,
+  "artistsLeft": 0,
+  "jackets": 5,
+  "jacketsLeft": 1132,
   "finishLeft": 2208,
-  "added": 13,
+  "added": 0,
   "looked": 0,
-  "artists": 28,
-  "at": "2026-10-30T12:33:54+00:00",
-  "requests": 28,
-  "used24": 409,
+  "artists": 4,
+  "at": "2026-10-30T12:54:46+00:00",
+  "requests": 9,
+  "used24": 418,
   "budget": 590,
   "coolingUntil": ""
  }
