@@ -958,6 +958,8 @@ body.modal-lock #toTop{display:none;}
             <dt>次の確認</dt><dd id="stNext">―</dd>
             <dt>最後に聴いた曲</dt><dd id="stLast">―</dd>
             <dt>連携の期限</dt><dd id="stExpire">―</dd>
+            <dt class="ext">外部の呼び出し</dt><dd class="ext" id="stExt">―</dd>
+            <dt class="ext">呼び出し用の鍵</dt><dd class="ext" id="stExtKey">―</dd>
           </dl>
           <div class="st-sub run">最終確認で更新した内容</div>
           <dl class="status run">
@@ -1401,12 +1403,29 @@ body.modal-lock #toTop{display:none;}
     $('stLast').innerHTML = '<button type="button" class="st-song" data-song="' + lastIdx + '">' + esc(lastSong.t || '―') + '</button>'
       + '<br><small>' + esc((lastSong.a || '') + '・' + when(LAST_PLAY)) + '</small>';
   }
+  function day(t){ return when(t).replace(/\d{1,2}:\d{2}$/, ''); }
+  // 外部（cron-job.org）からの呼び出しの状態と、呼び出し用の鍵の期限
+  var EXT_ISSUE = '';
+  (function(){
+    var last = ST.lastExternal, exp = ST.triggerExpires;
+    if (!last && !exp) { document.querySelectorAll('#statusCard .ext').forEach(function(e){ e.hidden = true; }); return; }
+    if (last) {
+      var late = NOW - last > 3 * 3600000;
+      $('stExt').innerHTML = esc(when(last)) + (late ? ' <small>（3時間以上呼ばれていません）</small>' : '');
+      if (late) { $('stExt').classList.add('bad'); EXT_ISSUE = '呼び出し停止'; }
+    } else $('stExt').innerHTML = '<small>まだ呼ばれていません</small>';
+    if (exp && /^\d{4}-\d{2}-\d{2}$/.test(exp)) {
+      var p3 = exp.split('-').map(Number), e = Date.UTC(p3[0], p3[1]-1, p3[2]) - 9*3600000;
+      var leftK = Math.ceil((e - NOW) / DAY);
+      $('stExtKey').innerHTML = esc(day(e) + 'まで') + (leftK > 0 ? ' <small>（あと' + leftK + '日）</small>' : ' <small>（期限切れ）</small>');
+      if (leftK <= 14) { $('stExtKey').classList.add('bad'); EXT_ISSUE = EXT_ISSUE || (leftK > 0 ? '鍵の期限が近い' : '鍵の期限切れ'); }
+    } else $('stExtKey').innerHTML = '<small>期限が未登録です</small>';
+  })();
   // 取り寄せのお知らせ：取り込み済みの履歴の最終日から半年たったら、または欠けた可能性のある期間があれば出す
   (function(){
     var F = ST.fetch || {}, gaps = F.gaps || [];
     var until = F.historyUntil ? Date.parse(F.historyUntil) : null;
     var nextAt = until != null ? until + (F.remindDays || 180) * DAY : null;
-    function day(t){ return when(t).replace(/\d{1,2}:\d{2}$/, ''); }
     $('fetchUntil').textContent = until != null ? day(until) + 'まで' : 'まだありません';
     $('fetchNext').innerHTML = nextAt == null ? '<small>履歴を取り込むと表示します</small>'
       : esc(day(nextAt) + 'ごろ') + (nextAt <= NOW ? ' <small>（時期です）</small>' : '');
@@ -1415,12 +1434,13 @@ body.modal-lock #toTop{display:none;}
         return '<li>' + esc(when(g.from)) + ' 〜 ' + esc(when(g.to)) + '</li>'; }).join('') + '</ul>';
     }
     var due = (nextAt != null && nextAt <= NOW) || gaps.length > 0;
-    if (due) {
+    if (EXT_ISSUE || due) {
       $('fetchPill').hidden = false;
-      $('fetchPillText').textContent = gaps.length ? '欠けた期間あり' : '取り寄せ時期';
+      $('fetchPillText').textContent = EXT_ISSUE || (gaps.length ? '欠けた期間あり' : '取り寄せ時期');
+      $('fetchPill').firstChild.textContent = EXT_ISSUE ? '⚠️' : '📥';
       $('fetchPill').addEventListener('click', function(e){
         e.preventDefault();
-        $('fetchSec').scrollIntoView({behavior: 'smooth', block: 'start'});
+        (EXT_ISSUE ? $('statusCard') : $('fetchSec')).scrollIntoView({behavior: 'smooth', block: 'start'});
       });
     }
   })();

@@ -629,6 +629,10 @@ def main():
         print(f"[{e.code}] {e.message}\n{e.detail}")
         sys.exit(0 if e.code in ("temporary", "not_configured") else 2)   # 初期設定前は失敗扱いにしない
 
+    src = os.environ.get("TRIGGER_SOURCE", "") or "manual"
+    st["lastTrigger"] = {"source": src, "at": now.isoformat(timespec="seconds")}
+    if src == "cron-job":
+        st["lastExternal"] = now.isoformat(timespec="seconds")   # 外部（cron-job.org）からの呼び出し
     if REPORT.get("gap"):
         st.setdefault("gaps", []).append(REPORT["gap"])   # 欠けているかもしれない期間（取り寄せた履歴で埋まると、ページ側で自動的に消える）
         st["gaps"] = st["gaps"][-50:]

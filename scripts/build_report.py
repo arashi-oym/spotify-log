@@ -362,7 +362,7 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v24"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+VERSION = "v25"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
@@ -450,6 +450,8 @@ def main():
             "lastSuccess": to_ms(st.get("lastSuccess")),
             "tokenSince": st.get("tokenSince", ""),
             "fetch": fetch_reminder(st),
+            "lastExternal": to_ms(st.get("lastExternal")),
+            "triggerExpires": os.environ.get("TRIGGER_TOKEN_EXPIRES", "").strip(),
             "lastRun": dict(st.get("lastRun") or {}, at=to_ms((st.get("lastRun") or {}).get("at")),
                             coolingUntil=to_ms((st.get("lastRun") or {}).get("coolingUntil"))) if st.get("lastRun") else None,
         },
