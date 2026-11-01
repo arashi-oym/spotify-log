@@ -303,12 +303,12 @@ GitHubの自動実行は、GitHubが混んでいると何時間も飛ばされ�
 1. [新しい Fine-grained token を作る画面](https://github.com/settings/personal-access-tokens/new) を開く（右上のアイコン →「Settings」→ 左メニュー最下部「Developer settings」→「Personal access tokens」→「Fine-grained tokens」→「Generate new token」でも同じ）
 2. 次のように入力する
 
-| 項目 | 入れるもの |
-|---|---|
-| Token name | `cron-job spotify-log` など |
-| Expiration | 期限なし（No expiration）か、1年など。期限を付けたら日付をメモ |
-| Repository access | **Only select repositories** → このリポジトリだけを選ぶ |
-| Permissions | 「＋ Add permissions」→ **Actions** を選び、**Read and write** にする（Metadata が自動で付くのは正常。ほかは追加しない） |
+   | 項目 | 入れるもの |
+   |---|---|
+   | Token name | `cron-job spotify-log` など |
+   | Expiration | 期限なし（No expiration）か、1年など。期限を付けたら日付をメモ |
+   | Repository access | **Only select repositories** → このリポジトリだけを選ぶ |
+   | Permissions | 「＋ Add permissions」→ **Actions** を選び、**Read and write** にする（Metadata が自動で付くのは正常。ほかは追加しない） |
 
 3. 「Generate token」→ 表示された `github_pat_…` をコピー（**一度しか表示されません。人に見せないでください**）
 
