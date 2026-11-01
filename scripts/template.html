@@ -1132,6 +1132,25 @@ body[data-sk=home] .sk-all{display:block}
 .total-box .go{background:var(--surface)!important;border-radius:999px!important;padding:5px 12px!important;box-shadow:0 2px 10px rgba(0,0,0,.08)}
 .inp:focus{border-color:transparent;box-shadow:0 0 0 3px rgba(0,113,227,.35)}
 .pcard.tap:hover,.rec.tap:hover{background:var(--fill)!important}
+
+/* ---- スマホのヘッダー：ページ名を残し、期間は「期間の1行」から選ぶ ---- */
+.logo-text{display:inline!important}
+.sk-slot:empty{display:none}
+.sk-ct{display:contents}
+.sk-dd.sk-left .sk-menu{left:0;right:auto;transform-origin:top left}
+@media (max-width:600px){
+  #topbar{gap:4px;padding:0 8px 0 14px}
+  .logo-text{font-size:1rem!important}
+  .fetch-pill{padding:6px 9px!important}
+  #fetchPillText{display:none}
+  .sk-cap{position:sticky;top:calc(env(safe-area-inset-top,0px) + 56px);z-index:140;margin:0 -10px;padding:8px 10px;background:var(--bar-bg);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid color-mix(in srgb,var(--corp-border) 45%,transparent);font-size:12.5px;gap:6px}
+  .sk-cap .dot,.sk-cap .lab{display:none}
+  .sk-cap .sk-ddb{height:32px;font-size:13px;padding:0 10px 0 13px;max-width:none}
+  .alert.err{top:calc(env(safe-area-inset-top,0px) + 108px)}
+}
+@media (max-width:340px){ .logo-mark{display:none} }
+@media (min-width:421px) and (max-width:600px){ .sk-cap{margin:0 -16px;padding:8px 16px} }
 </style>
 </head>
 <body>
@@ -3041,6 +3060,7 @@ body[data-sk=home] .sk-all{display:block}
   var top = document.createElement('div'); top.className = 'sk-top';
   top.innerHTML = '<div class="seg" role="tablist" id="skTopSeg">' + TABS.map(function(t){ return '<button type="button" role="tab" data-sk="' + t[0] + '">' + t[1] + (t[0] === 'log' ? '<span class="sk-badge"></span>' : '') + '</button>'; }).join('') + '</div>';
   var cap = document.createElement('div'); cap.className = 'sk-cap'; cap.id = 'skCap';
+  cap.innerHTML = '<span class="sk-slot" id="skSlot"></span><span class="sk-ct" id="skCapText"></span>';
   page.insertBefore(top, page.firstChild); page.insertBefore(cap, notice.nextSibling);
   var bottom = document.createElement('nav'); bottom.className = 'sk-tabs'; bottom.setAttribute('aria-label', 'メイン');
   bottom.innerHTML = TABS.map(function(t){ return '<button type="button" role="tab" data-sk="' + t[0] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + t[2] + '</svg>' + t[1] + (t[0] === 'log' ? '<span class="sk-badge"></span>' : '') + '</button>'; }).join('');
@@ -3056,7 +3076,7 @@ body[data-sk=home] .sk-all{display:block}
     markTabs(t);
     if (t === 'ana') { if (!origAna.classList.contains('on')) origAna.click(); }
     else if (origAna.classList.contains('on')) origRank.click();
-    if (!keepScroll) window.scrollTo({top: 0, behavior: 'instant'});
+    if (!keepScroll) try { window.scrollTo(0, 0); } catch(_) {}
     requestAnimationFrame(function(){
       document.querySelectorAll('#rankView .card, #analysis > *').forEach(function(c){ if (c.offsetParent) { c.classList.remove('sk-in'); void c.offsetWidth; c.classList.add('sk-in'); } });
       animateIn(document.querySelector('main.page'));
@@ -3091,14 +3111,21 @@ body[data-sk=home] .sk-all{display:block}
   function caption(){
     var R = window.__MLL && window.__MLL.range ? window.__MLL.range() : null;
     var M = window.__MLL || {}, plays = M.plays ? M.plays().toLocaleString('ja-JP') : '';
-    var lab = $('skDDLabel').textContent, h = '<span class="dot"></span><b>' + lab + '</b>';
+    var lab = $('skDDLabel').textContent, h = '<span class="dot"></span><b class="lab">' + lab + '</b>';
     if (R && R.kind !== 'all' && R.from) {
       var to = Math.min(R.to, (M.now || Date.now()) + 1), di = function(t){ return Math.floor((t + H9) / DAYMS); }, days = /^直近/.test(lab) ? Math.round((to - 1 - R.from) / DAYMS) : Math.max(1, di(to - 1) - di(R.from) + 1);
       h += '<span>' + (days > 1 ? md(R.from) + '〜' + md(to - 1) + '・' : md(R.from) + '・') + days + '日間</span>';
     }
     if (plays) h += '<span class="sep">｜</span><span>' + plays + '回</span>';
-    cap.innerHTML = h;
+    $('skCapText').innerHTML = h;
   }
+  // スマホ：期間のプルダウンを期間の1行の先頭へ移し、ヘッダーにはページ名を出す
+  var mqN = matchMedia('(max-width: 600px)');
+  function placeDD(){ var narrow = mqN.matches, slot = $('skSlot'), hdr = search.parentNode;
+    if (narrow && dd.parentNode !== slot) { slot.appendChild(dd); dd.classList.add('sk-left'); }
+    else if (!narrow && dd.parentNode === slot) { hdr.insertBefore(dd, search); dd.classList.remove('sk-left'); }
+    document.body.classList.toggle('sk-narrow', narrow); }
+  if (mqN.addEventListener) mqN.addEventListener('change', placeDD); else mqN.addListener(placeDD);
   new MutationObserver(syncLabel).observe($('periodSegDesk'), {childList: true, subtree: true, attributes: true});
 
   /* ---------- 滑るスイッチ（すべての切り替えボタンに） ---------- */
@@ -3152,7 +3179,7 @@ body[data-sk=home] .sk-all{display:block}
     growBars(root);
     root.querySelectorAll(NUM_SEL).forEach(function(el){ if (el.offsetParent) countIn(el); });
   }
-  var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add('sk-on'); io.unobserve(e.target); animateIn(e.target); } }); }, {threshold: 0.12});
+  var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add('sk-on'); io.unobserve(e.target); animateIn(e.target); } }); }, {threshold: 0, rootMargin: '0px 0px -40px 0px'});
   function reveal(el){ if (calm) return; el.classList.add('sk-rv'); el.classList.remove('sk-on'); io.observe(el); }
 
   var pending = [];
@@ -3177,6 +3204,7 @@ body[data-sk=home] .sk-all{display:block}
   document.querySelectorAll('.modal').forEach(function(m){ new MutationObserver(function(){ if (m.classList.contains('open')) requestAnimationFrame(function(){ m.querySelectorAll('.seg').forEach(function(s){ placeThumb(s, true); }); }); }).observe(m, {attributes: true, attributeFilter: ['class']}); });
 
   /* ---------- 起動 ---------- */
+  placeDD();
   document.querySelectorAll('.seg').forEach(enhanceSeg);
   var start = 'home'; try { var q = new URLSearchParams(location.search).get('tab'); if (q) start = q; } catch(_) {}
   markTabs(start === 'ana' ? 'home' : start); if (start === 'ana') setTab('ana', true);
