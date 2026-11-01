@@ -4,8 +4,8 @@
  "state": "ok",
  "code": "",
  "message": "",
- "at": "2026-11-01T23:00:42+00:00",
- "lastSuccess": "2026-11-01T23:00:42+00:00",
+ "at": "2026-11-01T23:06:07+00:00",
+ "lastSuccess": "2026-11-01T23:06:07+00:00",
  "usage": [
   [
    "2026-11-01T01:28:52+00:00",
@@ -134,26 +134,30 @@
   [
    "2026-11-01T23:00:42+00:00",
    13
+  ],
+  [
+   "2026-11-01T23:06:07+00:00",
+   6
   ]
  ],
  "lastRun": {
   "gap": null,
   "artistsLeft": 0,
-  "jackets": 12,
-  "jacketsLeft": 440,
-  "finishLeft": 2218,
+  "jackets": 6,
+  "jacketsLeft": 434,
+  "finishLeft": 2219,
   "added": 0,
   "looked": 0,
-  "artists": 2,
-  "at": "2026-11-01T23:00:42+00:00",
-  "requests": 13,
-  "used24": 485,
+  "artists": 1,
+  "at": "2026-11-01T23:06:07+00:00",
+  "requests": 6,
+  "used24": 491,
   "budget": 590,
   "coolingUntil": ""
  },
  "lastTrigger": {
-  "source": "cron-job",
-  "at": "2026-11-01T23:00:42+00:00"
+  "source": "schedule",
+  "at": "2026-11-01T23:06:07+00:00"
  },
  "lastExternal": "2026-11-01T23:00:42+00:00"
 }
