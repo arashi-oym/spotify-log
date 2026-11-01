@@ -40,6 +40,7 @@ jobs:
       - name: ページを作成
         env:
           TRIGGER_TOKEN_EXPIRES: ${{ vars.TRIGGER_TOKEN_EXPIRES }}   # 外部呼び出し用の鍵の有効期限（GitHubの「Variables」に日付を入れておく）
+          PAGE_DESIGN: ${{ vars.PAGE_DESIGN }}   # classic にすると以前のデザイン（v25）でページを作る。空なら新しいデザイン
         run: python3 scripts/build_report.py
 
       # 記録として保存するのは data フォルダだけ（専用ページ本体は保存せず、次の手順でその都度お届けします）
