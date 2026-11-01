@@ -2,8 +2,13 @@ name: Spotify再生記録
 
 on:
   schedule:
-    - cron: "17,47 * * * *"   # 毎時17分と47分ごろに自動で実行
-  workflow_dispatch:        # 手動で実行するボタン（Run workflow）
+    - cron: "17,47 * * * *"   # 1時間に2回（17分・47分ごろ）自動で実行。GitHubが混んで片方が飛ばされても、もう片方で拾う
+  workflow_dispatch:        # 手動で実行するボタン（Run workflow）。外部の呼び出し（cron-job.org）もここから入る
+    inputs:
+      source:
+        description: "呼び出し元（手動のときはそのままでOK）"
+        required: false
+        default: "manual"
 
 permissions:
   contents: write   # data フォルダを保存するため
@@ -29,9 +34,12 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+          TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'schedule' || inputs.source || 'manual' }}
         run: python3 scripts/fetch.py
 
       - name: ページを作成
+        env:
+          TRIGGER_TOKEN_EXPIRES: ${{ vars.TRIGGER_TOKEN_EXPIRES }}   # 外部呼び出し用の鍵の有効期限（GitHubの「Variables」に日付を入れておく）
         run: python3 scripts/build_report.py
 
       # 記録として保存するのは data フォルダだけ（専用ページ本体は保存せず、次の手順でその都度お届けします）
