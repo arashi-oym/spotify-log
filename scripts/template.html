@@ -1151,6 +1151,10 @@ body[data-sk=home] .sk-all{display:block}
 }
 @media (max-width:340px){ .logo-mark{display:none} }
 @media (min-width:421px) and (max-width:600px){ .sk-cap{margin:0 -16px;padding:8px 16px} }
+.pick-inner{position:relative;padding-right:56px!important}
+.sk-pickx{position:absolute;top:10px;right:12px;width:36px;height:36px;border-radius:50%;border:0;background:var(--fill);color:var(--text);font-size:14px;cursor:pointer}
+.sk-pickx:hover{background:var(--line)}
+.rk .bar i,.cb i{transition:none!important}
 </style>
 </head>
 <body>
@@ -3152,27 +3156,37 @@ body[data-sk=home] .sk-all{display:block}
   /* ---------- 動き：棒が伸びる・数字が数え上がる・カードが出てくる ---------- */
   var NUM_SEL = '.rk .cnt b, .total-box .v, .stat .v, .pcard .pcount, .bt td.r';
   function countText(node){
-    var raw = node.nodeValue, m = raw.match(/^(\s*)([\d,]+(?:\.\d+)?)(\s*)$/); if (!m) return;
-    if (node.parentNode && node.parentNode.id === 'sumPlays') node.parentNode.dataset.skv = m[2];
-    var to = parseFloat(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length; if (!(to > 0)) return;
+    // 動いている途中にもう一度呼ばれても、途中の数字ではなく最初に読んだ本来の数字を目標にする
+    var m, to, dec, pre, post;
+    if (node._skRun) { to = node._skTo; dec = node._skDec; pre = node._skPre; post = node._skPost; }
+    else {
+      m = node.nodeValue.match(/^(\s*)([\d,]+(?:\.\d+)?)(\s*)$/); if (!m) return;
+      to = parseFloat(m[2].replace(/,/g, '')); dec = (m[2].split('.')[1] || '').length; pre = m[1]; post = m[3];
+      if (!(to > 0)) return;
+    }
     if (calm) return;
-    var t0 = performance.now(), dur = 1200;
-    (function step(t){ var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 4), v = to * e;
-      node.nodeValue = m[1] + v.toLocaleString('ja-JP', {minimumFractionDigits: dec, maximumFractionDigits: dec}) + m[3];
-      if (k < 1 && node.isConnected) requestAnimationFrame(step); else if (node.parentNode && node.parentNode.dataset) delete node.parentNode.dataset.skv; })(t0);
+    node._skRun = true; node._skTo = to; node._skDec = dec; node._skPre = pre; node._skPost = post;
+    var token = node._skTok = (node._skTok || 0) + 1, t0 = performance.now(), dur = 1200;
+    function f(v){ return pre + v.toLocaleString('ja-JP', {minimumFractionDigits: dec, maximumFractionDigits: dec}) + post; }
+    (function step(t){
+      if (node._skTok !== token) return;
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+      node.nodeValue = f(to * e);
+      if (k < 1 && node.isConnected) requestAnimationFrame(step); else { node.nodeValue = f(to); node._skRun = false; }
+    })(t0);
   }
   function countIn(el){ var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), n, list = []; while ((n = w.nextNode())) list.push(n); list.forEach(countText); }
+  // 棒が0から伸びる動き。Safariでも確実に動くよう、ブラウザの「アニメーション機能」で1本ずつ動かす
   function growBars(root){
     if (calm) return;
-    var bars = [].slice.call(root.querySelectorAll('.bar > i[style*="width"], .cb > i[style*="height"]'));
+    var bars = [].slice.call(root.querySelectorAll('.bar > i[style*="width"], .cb > i[style*="height"]')), k = 0;
     bars.forEach(function(i){
       var h = i.parentNode.classList.contains('cb'), prop = h ? 'height' : 'width', target = i.style[prop];
-      if (!target || target === '0px') return;
-      i.classList.remove('sk-grow'); i.style[prop] = '0'; i._skT = target; i._skP = prop;
+      if (!target || !(parseFloat(target) > 0)) return;
+      if (i._skA) { try { i._skA.cancel(); } catch(_) {} }
+      var from = {}, to = {}; from[prop] = '0px'; to[prop] = target;
+      if (i.animate) i._skA = i.animate([from, to], {duration: h ? 1000 : 1200, delay: Math.min(k++, 20) * (h ? 14 : 40), easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards'});
     });
-    void root.offsetWidth;
-    var k = 0;
-    requestAnimationFrame(function(){ bars.forEach(function(i){ if (!i._skT) return; i.classList.add('sk-grow'); i.style.transitionDelay = Math.min(k++, 18) * (i._skP === 'height' ? 12 : 40) + 'ms'; i.style[i._skP] = i._skT; i._skT = null; }); });
   }
   function animateIn(root){
     if (!root) return;
@@ -3184,7 +3198,7 @@ body[data-sk=home] .sk-all{display:block}
 
   var pending = [];
   function flush(){
-    var nodes = pending; pending = [];
+    var nodes = pending, roots = []; pending = [];
     nodes.forEach(function(n){
       if (!n.isConnected || n.nodeType !== 1) return;
       (n.matches('.seg') ? [n] : []).concat([].slice.call(n.querySelectorAll('.seg'))).forEach(enhanceSeg);
@@ -3192,8 +3206,9 @@ body[data-sk=home] .sk-all{display:block}
         var cards = n.matches('.card') ? [n] : [].slice.call(n.querySelectorAll('.card'));
         if (cards.length) { cards.forEach(reveal); return; }
       }
-      if (n.closest('.modal-body') || n.closest('#rankView') || n.closest('#analysis')) { var host = n.closest('.card, .modal-body') || n; if (host.offsetParent || host.closest('.modal.open')) animateIn(n.parentNode || n); }
+      if (n.closest('.modal-body') || n.closest('#rankView') || n.closest('#analysis')) { var host = n.closest('.card, .modal-body') || n; if (host.offsetParent || host.closest('.modal.open')) { var r = n.parentNode || n; if (roots.indexOf(r) < 0) roots.push(r); } }
     });
+    roots.filter(function(r){ return !roots.some(function(o){ return o !== r && o.contains(r); }); }).forEach(animateIn);
     syncLabel(); badges();
   }
   new MutationObserver(function(ms){
@@ -3202,6 +3217,17 @@ body[data-sk=home] .sk-all{display:block}
   }).observe(document.body, {childList: true, subtree: true});
   // モーダルを開いたとき：中のスイッチの位置を合わせる
   document.querySelectorAll('.modal').forEach(function(m){ new MutationObserver(function(){ if (m.classList.contains('open')) requestAnimationFrame(function(){ m.querySelectorAll('.seg').forEach(function(s){ placeThumb(s, true); }); }); }).observe(m, {attributes: true, attributeFilter: ['class']}); });
+
+  /* ---------- 「期間を選ぶ」の画面：✕・外側のタップ・Escで閉じる ---------- */
+  var pickBtn = function(){ return $('periodSegDesk').querySelector('[data-pick]'); };
+  function closePick(){ if ($('ui').classList.contains('pick-open')) { var b = pickBtn(); if (b) b.click(); else $('ui').classList.remove('pick-open'); } }
+  var px = document.createElement('button'); px.type = 'button'; px.className = 'sk-pickx'; px.setAttribute('aria-label', '閉じる'); px.textContent = '✕';
+  px.addEventListener('click', closePick);
+  document.querySelector('#pickPanel .pick-inner').appendChild(px);
+  document.addEventListener('click', function(e){ if (!e.isTrusted || !e.target.isConnected || !$('ui').classList.contains('pick-open')) return;
+    if (e.target.closest('#pickPanel') || e.target.closest('.sk-dd') || e.target.closest('#periodSegDesk') || e.target.closest('#periodSegMobile')) return;
+    closePick(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closePick(); });
 
   /* ---------- 起動 ---------- */
   placeDD();
