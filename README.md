@@ -90,7 +90,7 @@ GitHubは、スマホ表示だと一部のボタン（「Settings」など）が
 1. 「Actions」→「Spotify再生記録」→「**Run workflow**」
 2. 緑のチェックになったら、専用ページを再読み込み
 
-最近聴いた曲（直近50曲）が表示されていれば完成です。ここから先は、**1時間ごとに自動で記録が増えていきます**。
+最近聴いた曲（直近50曲）が表示されていれば完成です。ここから先は、**1時間に2回、自動で記録が増えていきます**。
 
 **ホーム画面に置くと便利です**
 - iPhone：Safariで専用ページを開く →「共有」→「ホーム画面に追加」
@@ -159,8 +159,10 @@ GitHubは、スマホ表示だと一部のボタン（「Settings」など）が
 | 次の確認 | 最終確認の約1時間後の日時（GitHubの都合で少し遅れることがあり、そのときは「少し遅れています」と出る） |
 | 最後に聴いた曲 | 最後に記録された曲とアーティスト・聴いた時刻（押すと曲の詳細が開く。聴いていなければ古いままで正常） |
 | 連携の期限 | 日付と「あと○日」が出ている |
+| 外部の呼び出し | 30分以内の日時になっている（[外部からの呼び出し](#外部からの呼び出しcron-joborg) を設定したときだけ表示） |
+| 呼び出し用の鍵 | 日付と「あと○日」が出ている（鍵に期限を付けたときだけ表示） |
 
-その下の **「最終確認で更新した内容」** には、最終確認の時刻の自動実行（1時間ごと）で何が更新されたかが出ます。
+その下の **「最終確認で更新した内容」** には、最終確認の時刻の自動実行（1時間に2回）で何が更新されたかが出ます。
 
 日時はすべて「2026/10/15（木）23:49」のように日付つきで表示します。ページを開いたまま30分以上たってから戻ってきたとき（または1時間以上開いたまま操作していないとき）は、自動で最新の記録に読み込み直します。
 
@@ -191,6 +193,8 @@ GitHubは、スマホ表示だと一部のボタン（「Settings」など）が
 | Spotifyに接続できない状態が続いています | Spotify側の一時的な不具合 | [D](#d-spotifyに接続できない状態が続いています) |
 | 自動の確認が止まっているようです | GitHubの自動実行が止まった | [E](#e-自動の確認が止まっているようです) |
 | （ページ自体が開かない・404） | ページの公開設定 | [F](#f-ページが開かない404と出る) |
+| ロゴの横に「⚠️ 呼び出し停止」 | cron-job.org からの呼び出しが3時間以上来ていない | [G](#g-呼び出し停止鍵の期限と出た) |
+| ロゴの横に「⚠️ 鍵の期限が近い」「⚠️ 鍵の期限切れ」 | 呼び出し用の鍵の期限 | [G](#g-呼び出し停止鍵の期限と出た) |
 
 ### A. 連携のやり直し（いちばんよくある直し方）
 
@@ -239,12 +243,38 @@ GitHubの自動実行が止まっている状態です。GitHubは、60日間ま
 3. 左の「Spotify再生記録」→「Run workflow」を押し、緑のチェック ✅ になるか確認
 4. 赤い ❌ になった場合は、その行を押して「record」→ 赤くなっている段階を開き、表示されたメッセージを確認
 
+GitHubが混んでいると、自動実行が何時間も飛ばされることがあります（リポジトリ側の問題ではありません）。何度も出るときは、[外部からの呼び出し](#外部からの呼び出しcron-joborg) を設定してください。
+
 ### F. ページが開かない（404と出る）
 
 1. このリポジトリの「Settings」→ 左メニュー「Pages」を開く
 2. 「Source」が **GitHub Actions** になっているか確認し、違えば変更
 3. リポジトリ名の横が **Public** になっているか確認（Privateだと無料プランではページを公開できません）
 4. 「Actions」→「Run workflow」で、「record」と「deploy」が緑のチェックになるか確認
+
+### G. 「呼び出し停止」「鍵の期限」と出た
+
+[外部からの呼び出し](#外部からの呼び出しcron-joborg) を設定している人だけに出るお知らせです。ロゴの横の札を押すと「記録の状態」に移動します。
+
+**⚠️ 呼び出し停止（3時間以上呼ばれていません）**
+1. [cron-job.org](https://console.cron-job.org/) にログインし、「Cronjobs」でこのジョブが **有効（Enabled）** になっているか確認
+2. ジョブを開いて「History」を見る。結果の数字で原因がわかります
+
+| 数字 | 原因 | やること |
+|---|---|---|
+| 204 | 呼び出しは成功している | GitHubの「Actions」で実行が詰まっていないか確認（しばらく待てば戻ることが多い） |
+| 401 | 鍵が無効（期限切れ・削除・貼り間違い） | 下の「鍵を作り直す」 |
+| 403 / 404 | 鍵の権限やURLの間違い | 鍵の設定（spotify-log だけ・Actions が Read and write）とURLを確認 |
+| 422 | GitHub側の設定ファイルが古い | `.github/workflows/spotify.yml` を最新版にする |
+
+**⚠️ 鍵の期限が近い／鍵の期限切れ**
+期限の2週間前から出ます。下の「鍵を作り直す」を行ってください。
+
+**鍵を作り直す**
+1. [Fine-grained tokens](https://github.com/settings/personal-access-tokens) を開き、古い鍵の **Regenerate token**（作り直し）を押す。または [外部からの呼び出し](#外部からの呼び出しcron-joborg) の手順2で新しく作る
+2. cron-job.org のジョブを開き、「Advanced」→ Headers の `Authorization` を `Bearer 新しい鍵` に貼り替えて保存
+3. 鍵に期限を付けた場合は、GitHubの「Settings」→「Secrets and variables」→「Actions」→「Variables」の `TRIGGER_TOKEN_EXPIRES` を新しい期限日に書き換える
+4. cron-job.org の「Test run」で **204** になればOK
 
 ### それでも直らないとき
 
@@ -254,6 +284,79 @@ Claudeなどに相談するときは、次の3つのスクリーンショット�
 1. 専用ページの上部のお知らせと、下の「記録の状態」
 2. GitHubの「Actions」の一覧画面
 3. 失敗した実行 →「record」→「再生履歴を取得」を開いた画面
+
+---
+
+## 外部からの呼び出し（cron-job.org）
+
+GitHubの自動実行は、GitHubが混んでいると何時間も飛ばされることがあります。間が空きすぎると、Spotifyから取れる「最近の50曲」を超えて取りこぼしが起こり得ます。
+そこで、外部のサービス **[cron-job.org](https://cron-job.org)**（無料）から30分ごとにGitHubの実行ボタンを押してもらうようにできます。**設定はおすすめですが必須ではありません。** GitHub側の自動実行もそのまま動くので、どちらかが止まっても、もう片方が記録を拾います。
+
+> 自分で「Run workflow」を押したときと同じ見た目になるため、cron-job.org からの実行は「Actions」の一覧で **「Manually run by（自分の名前）」** と表示されます。これで正常です。
+
+### 設定のしかた（スマホだけでOK・15分ほど）
+
+**1. 設定ファイルが最新か確認する**
+`.github/workflows/spotify.yml` の中に `inputs:` と `TRIGGER_SOURCE` の行があればOKです。なければ、ダウンロードした最新版の内容に書き換えてください（鉛筆アイコン → 全部消して貼り付け →「Commit changes」）。
+
+**2. 呼び出し用の鍵（トークン）を作る**
+1. [新しい Fine-grained token を作る画面](https://github.com/settings/personal-access-tokens/new) を開く（右上のアイコン →「Settings」→ 左メニュー最下部「Developer settings」→「Personal access tokens」→「Fine-grained tokens」→「Generate new token」でも同じ）
+2. 次のように入力する
+
+| 項目 | 入れるもの |
+|---|---|
+| Token name | `cron-job spotify-log` など |
+| Expiration | 期限なし（No expiration）か、1年など。期限を付けたら日付をメモ |
+| Repository access | **Only select repositories** → このリポジトリだけを選ぶ |
+| Permissions | 「＋ Add permissions」→ **Actions** を選び、**Read and write** にする（Metadata が自動で付くのは正常。ほかは追加しない） |
+
+3. 「Generate token」→ 表示された `github_pat_…` をコピー（**一度しか表示されません。人に見せないでください**）
+
+> 期限なしでも大丈夫です。この鍵でできるのは「このリポジトリの実行ボタンを押す・止める」ことだけで、記録やSpotifyの情報には触れられません。期限を付けると、漏れたときの保険になる代わりに、期限ごとに作り直す手間がかかります。
+
+**3. （期限を付けた人だけ）期限をページに表示させる**
+このリポジトリの「Settings」→「Secrets and variables」→「Actions」→ **「Variables」** タブ →「New repository variable」
+- Name：`TRIGGER_TOKEN_EXPIRES`
+- Value：期限日を `2027-10-31` の形で
+
+**4. cron-job.org で呼び出しを作る**
+1. [cron-job.org](https://cron-job.org) でアカウントを作る（ほかで使っていないパスワードで。2段階認証もおすすめ）
+2. 「Cronjobs」→「Create cronjob」
+3. **COMMON** タブ
+   - Title：`spotify-log`
+   - URL（`ユーザー名` と `リポジトリ名` を自分のものに）：
+     ```
+     https://api.github.com/repos/ユーザー名/リポジトリ名/actions/workflows/spotify.yml/dispatches
+     ```
+   - Save responses in job history：オン（うまくいかないときに原因を見られる）
+   - Execution schedule：**Every 30 minutes**
+4. **ADVANCED** タブ
+   - Headers（「＋ ADD」で4つ）
+
+     | Key | Value |
+     |---|---|
+     | `Authorization` | `Bearer github_pat_…`（`Bearer` と鍵の間に半角スペース1つ） |
+     | `Accept` | `application/vnd.github+json` |
+     | `X-GitHub-Api-Version` | `2022-11-28` |
+     | `Content-Type` | `application/json` |
+
+   - Request method：**POST**
+   - Request body：
+     ```
+     {"ref":"main","inputs":{"source":"cron-job"}}
+     ```
+   - ほか（Time zone・Timeout など）はそのまま
+5. **NOTIFICATIONS** タブ：失敗したときのメール通知をオン
+6. 「TEST RUN」で **204** と出たら成功 →「CREATE」で保存
+
+**5. 確かめる**
+- GitHubの「Actions」に「Manually run by（自分の名前）」の実行が増えていればOK
+- 実行が終わると、専用ページの「記録の状態」に **「外部の呼び出し」**（期限を付けた人は **「呼び出し用の鍵」** も）が表示されます
+
+困ったときは [G. 「呼び出し停止」「鍵の期限」と出た](#g-呼び出し停止鍵の期限と出た) を見てください。
+
+### やめたいとき
+cron-job.org でジョブを削除（または無効に）し、[Fine-grained tokens](https://github.com/settings/personal-access-tokens) で鍵を **Delete** してください。GitHub側の自動実行だけで今までどおり動きます。
 
 ---
 
@@ -385,7 +488,7 @@ zipは、GitHubに置いてある最新のプログラムから1時間ごとに�
 ## しくみの全体像
 
 ```
- Spotify ──(1時間ごとに再生履歴を確認)──▶ GitHub Actions
+ Spotify ──(1時間に2回 再生履歴を確認)──▶ GitHub Actions ◀── cron-job.org（30分ごとに呼び出し・任意）
                                             │
                                             ├─ data/ に記録を追加して保存（これだけ記録に残します）
                                             └─ docs/（専用ページ・ダウンロード）を作り直し、
@@ -417,13 +520,13 @@ zipは、GitHubに置いてある最新のプログラムから1時間ごとに�
 | `scripts/page-common.css` | 連携ページ・取り込みページのデザイン | 改造するときだけ |
 | `scripts/auth.py` | パソコンで連携する予備の方法 | 連携ページが使えないときだけ |
 | `scripts/import_history.py` | パソコンで履歴を変換する予備の方法 | 取り込みページが使えないときだけ |
-| `.github/workflows/spotify.yml` | 1時間ごとに動かす設定 | 改造するときだけ |
+| `.github/workflows/spotify.yml` | 1時間に2回動かす設定（外部からの呼び出しもここで受ける） | 改造するときだけ |
 
 ---
 
 ## 大事な注意
 
-- **Client Secret とリフレッシュトークンは、人に見せたり送ったりしないでください。** スクリーンショットを撮るときは写らないように注意してください
+- **Client Secret・リフレッシュトークン・呼び出し用の鍵（`github_pat_…`）は、人に見せたり送ったりしないでください。** 鍵が漏れたかもしれないときは、[Fine-grained tokens](https://github.com/settings/personal-access-tokens) で Delete すればすぐ使えなくなります。 スクリーンショットを撮るときは写らないように注意してください
 - 連携ページに入力した Client ID・Client Secret は、そのブラウザとSpotifyのあいだでだけ使われ、どこにも保存されません。人のスマホや共用のパソコンでは連携しないでください
 - `data` フォルダは記録そのものなので、消したり編集したりしないでください
 - このリポジトリと専用ページは公開（Public）です。**曲名・アーティスト名・再生日時は誰でも見られる状態**になります（URLを知らない人がたどり着くことはまずありません）。Spotifyのログイン情報などは公開されていません（GitHubのSecretに保管されています）
