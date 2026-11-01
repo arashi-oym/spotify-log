@@ -21,6 +21,17 @@ DATA = ROOT / "data"                               # 取り寄せた過去の履
 TRACKS_PATH = ROOT / "data" / "tracks.json"
 EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（身に覚えのない再生など）
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
+# 以前のデザイン（v25）の控え。GitHubの「Variables」で PAGE_DESIGN を classic にすると、こちらでページを作る
+CLASSIC_TEMPLATE = Path(__file__).resolve().parent / "template-v25.html"
+
+
+def page_template():
+    """使うデザインを選ぶ（ふだんは新デザイン。PAGE_DESIGN=classic のときだけ以前のデザイン）"""
+    want = os.environ.get("PAGE_DESIGN", "").strip().lower()
+    if want in ("classic", "old", "v25") and CLASSIC_TEMPLATE.exists():
+        print("ページのデザイン：以前のデザイン（v25）")
+        return CLASSIC_TEMPLATE
+    return TEMPLATE
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
 DOWNLOADS = DOCS / "downloads"
@@ -395,8 +406,8 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v25"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
-KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html",
+VERSION = "v26"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html", "template-v25.html",
              "setup.html", "import.html", "page-common.css"]
 
 
@@ -499,7 +510,7 @@ def main():
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     DOCS.mkdir(exist_ok=True)
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")
-    html = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
+    html = page_template().read_text(encoding="utf-8").replace("__DATA__", payload, 1)
     (DOCS / "index.html").write_text(html, encoding="utf-8")
     write_tool_pages(repo)
     build_downloads(rows, repo)
