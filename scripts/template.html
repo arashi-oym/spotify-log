@@ -1151,9 +1151,17 @@ body[data-sk=home] .sk-all{display:block}
 }
 @media (max-width:340px){ .logo-mark{display:none} }
 @media (min-width:421px) and (max-width:600px){ .sk-cap{margin:0 -16px;padding:8px 16px} }
-.pick-inner{position:relative;padding-right:56px!important}
-.sk-pickx{position:absolute;top:10px;right:12px;width:36px;height:36px;border-radius:50%;border:0;background:var(--fill);color:var(--text);font-size:14px;cursor:pointer}
-.sk-pickx:hover{background:var(--line)}
+.pick-inner{position:relative}
+/* ✕は目立たせず、切り替えスイッチと同じ高さの右端にそっと置く */
+.sk-pickx{position:absolute;top:16px;right:12px;width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:var(--text-faint);font-size:15px;line-height:1;cursor:pointer;transition:background .2s,color .2s}
+.sk-pickx:hover,.sk-pickx:focus-visible{background:var(--fill);color:var(--text)}
+.pick-mode{padding-right:40px}
+/* 日付の入力欄は枠いっぱいに（日付が途中で切れないように） */
+.pm-range .field{flex:1 1 280px}
+.pm-range .date-row .inp{min-width:0;font-size:16px;padding:0 12px}
+.pm-range .chip-sm{padding:0 14px}
+@media (max-width:760px){ .pm-range .field{flex:1 1 100%} }
+@media (max-width:420px){ .pick-mode .seg{width:100%} .sk-pickx{top:13px} }
 .rk .bar i,.cb i{transition:none!important}
 </style>
 </head>
