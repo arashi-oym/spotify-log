@@ -1367,6 +1367,10 @@ body[data-sk=home] .sk-all{display:block}
         <button type="button" data-scope="all" class="on">全期間から探す</button>
         <button type="button" data-scope="period">選んでいる期間だけ</button>
       </div>
+      <div class="seg seg-mini" id="searchMatchSeg" aria-label="探し方">
+        <button type="button" data-match="words" class="on">単語ごとに探す</button>
+        <button type="button" data-match="exact">入力どおりに探す</button>
+      </div>
     </div>
     <div class="modal-body" id="searchBody"></div>
   </div>
@@ -2857,7 +2861,9 @@ body[data-sk=home] .sk-all{display:block}
   /* ============================================================
      検索（曲・アーティスト）
   ============================================================ */
-  var SEARCH = {scope: 'all', type: 'both', q: ''};
+  var SEARCH = {scope: 'all', type: 'both', q: '', match: 'words'};
+  // 探し方：words＝スペースで区切った単語が順番を問わず全部含まれる / exact＝入力した文字がそのままの並びで含まれる（以前の方式）
+  try { if (localStorage.getItem('mll-search-match') === 'exact') SEARCH.match = 'exact'; } catch(_) {}
   var ARTIST_LIST = Object.keys(ARTIST_SONGS);
   function norm(s){ return s.toLowerCase().normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/[\u30a1-\u30f6]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0x60); }); } // カタカナ→ひらがな寄せ＋全角半角統一
   // 曲は「曲名」だけで探す（アーティスト名での一致は「アーティスト」側に出す）
@@ -2877,7 +2883,7 @@ body[data-sk=home] .sk-all{display:block}
     return '<p class="search-hint">' + w + 'を入力してください。<br>見つからない' + (SEARCH.type === 'artist' ? '人' : '曲') + 'は、ランキングに出てこなかった（上位に入らなかった）かもしれません。</p>';
   }
   function runSearch(q){
-    var n = norm(q).trim(), words = n.split(/\s+/).filter(Boolean);   // スペースで区切った単語が、順番を問わず全部含まれていれば一致
+    var n = norm(q).trim(), words = SEARCH.match === 'exact' ? [n] : n.split(/\s+/).filter(Boolean);   // スペースで区切った単語が、順番を問わず全部含まれていれば一致
     function hit(str){ for (var w = 0; w < words.length; w++) if (str.indexOf(words[w]) < 0) return false; return true; }
     if (!n) { $('searchBody').innerHTML = searchHint(); return; }
     var inPeriod = SEARCH.scope === 'period', songs = [], artists = [];
@@ -2951,6 +2957,13 @@ body[data-sk=home] .sk-all{display:block}
     [].forEach.call($('searchScopeSeg').children, function(x){ x.classList.toggle('on', x===b); });
     if (SEARCH.q) runSearch(SEARCH.q); else $('searchBody').innerHTML = searchHint();
   });
+  $('searchMatchSeg').addEventListener('click', function(e){
+    var b = e.target.closest('[data-match]'); if (!b) return;
+    SEARCH.match = b.dataset.match; try { localStorage.setItem('mll-search-match', SEARCH.match); } catch(_) {}
+    [].forEach.call($('searchMatchSeg').children, function(x){ x.classList.toggle('on', x===b); });
+    if (SEARCH.q) runSearch(SEARCH.q); else $('searchBody').innerHTML = searchHint();
+  });
+  [].forEach.call($('searchMatchSeg').children, function(x){ x.classList.toggle('on', x.dataset.match === SEARCH.match); });
   $('searchTypeSeg').addEventListener('click', function(e){
     var b = e.target.closest('[data-type]'); if (!b) return;
     SEARCH.type = b.dataset.type;
