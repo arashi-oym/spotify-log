@@ -2859,7 +2859,7 @@ body[data-sk=home] .sk-all{display:block}
   ============================================================ */
   var SEARCH = {scope: 'all', type: 'both', q: ''};
   var ARTIST_LIST = Object.keys(ARTIST_SONGS);
-  function norm(s){ return s.toLowerCase().normalize('NFKC').replace(/[\u30a1-\u30f6]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0x60); }); } // カタカナ→ひらがな寄せ＋全角半角統一
+  function norm(s){ return s.toLowerCase().normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/[\u30a1-\u30f6]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0x60); }); } // カタカナ→ひらがな寄せ＋全角半角統一
   // 曲は「曲名」だけで探す（アーティスト名での一致は「アーティスト」側に出す）
   var SONG_NORM = SONGS.map(function(sg){ return norm(sg.t); });
   var ARTIST_NORM = ARTIST_LIST.map(norm);
@@ -2877,16 +2877,17 @@ body[data-sk=home] .sk-all{display:block}
     return '<p class="search-hint">' + w + 'を入力してください。<br>見つからない' + (SEARCH.type === 'artist' ? '人' : '曲') + 'は、ランキングに出てこなかった（上位に入らなかった）かもしれません。</p>';
   }
   function runSearch(q){
-    var n = norm(q).trim();
+    var n = norm(q).trim(), words = n.split(/\s+/).filter(Boolean);   // スペースで区切った単語が、順番を問わず全部含まれていれば一致
+    function hit(str){ for (var w = 0; w < words.length; w++) if (str.indexOf(words[w]) < 0) return false; return true; }
     if (!n) { $('searchBody').innerHTML = searchHint(); return; }
     var inPeriod = SEARCH.scope === 'period', songs = [], artists = [];
     if (SEARCH.type !== 'artist') for (var i = 0; i < SONGS.length; i++) {
-      if (SONG_NORM[i].indexOf(n) < 0) continue;
+      if (!hit(SONG_NORM[i])) continue;
       var c = countInCurrent('song', i); if (inPeriod && !c) continue;
       songs.push({idx: i, c: c});
     }
     if (SEARCH.type !== 'song') for (var j = 0; j < ARTIST_LIST.length; j++) {
-      if (ARTIST_NORM[j].indexOf(n) < 0) continue;
+      if (!hit(ARTIST_NORM[j])) continue;
       var name = ARTIST_LIST[j], c2 = countInCurrent('artist', name); if (inPeriod && !c2) continue;
       artists.push({name: name, c: c2});
     }
