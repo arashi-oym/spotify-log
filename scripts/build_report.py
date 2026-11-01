@@ -248,8 +248,35 @@ def inline(text):
     return "".join(out)
 
 
+def table_html(rows):
+    head, body = rows[0], [r for r in rows[1:] if not all(set(c) <= set("-: ") for c in r)]
+    t = "<div class=\"tbl-scroll\"><table class=\"bt\"><thead><tr>" + "".join(f"<th>{inline(c)}</th>" for c in head) + "</tr></thead><tbody>"
+    t += "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>" for r in body)
+    return t + "</tbody></table></div>"
+
+
+def block_in_item(lines, i):
+    """箇条書きの中に字下げして書いたコード（```）や表（|）を読み取る"""
+    s = lines[i].strip()
+    if s.startswith("```"):
+        j, code = i + 1, []
+        while j < len(lines) and not lines[j].strip().startswith("```"):
+            code.append(lines[j].strip())
+            j += 1
+        return "<pre><code>" + html.escape("\n".join(code)) + "</code></pre>", j + 1
+    if s.startswith("|"):
+        rows = []
+        while i < len(lines) and lines[i].strip().startswith("|"):
+            rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+            i += 1
+        return table_html(rows), i
+    return None, i
+
+
 def parse_list(lines, i, indent):
-    tag = "ol" if LI.match(lines[i]).group(2)[0].isdigit() else "ul"
+    first = LI.match(lines[i]).group(2)
+    tag = "ol" if first[0].isdigit() else "ul"
+    start = int(first[:-1]) if tag == "ol" else 1
     items = []
     while i < len(lines):
         m = LI.match(lines[i])
@@ -258,15 +285,23 @@ def parse_list(lines, i, indent):
                 j = i + 1
                 while j < len(lines) and not lines[j].strip():
                     j += 1
-                mm = LI.match(lines[j]) if j < len(lines) else None
-                if mm and len(mm.group(1)) >= indent and items:
-                    i = j
-                    continue
+                if j < len(lines) and items:
+                    nxt = lines[j]
+                    mm = LI.match(nxt)
+                    nind = len(nxt) - len(nxt.lstrip())
+                    if (mm and len(mm.group(1)) >= indent) or (not mm and nind > indent):
+                        i = j
+                        continue
                 break
             ind = len(lines[i]) - len(lines[i].lstrip())
             if ind > indent and items:
-                items[-1][1].append("<br>" + inline(lines[i].strip()))
-                i += 1
+                blk, i2 = block_in_item(lines, i)
+                if blk:
+                    items[-1][1].append(blk)
+                    i = i2
+                else:
+                    items[-1][1].append("<br>" + inline(lines[i].strip()))
+                    i += 1
                 continue
             break
         ind = len(m.group(1))
@@ -279,7 +314,8 @@ def parse_list(lines, i, indent):
         items.append([inline(m.group(3)), []])
         i += 1
     body = "".join(f"<li>{t}{''.join(x)}</li>" for t, x in items)
-    return f"<{tag}>{body}</{tag}>", i
+    attr = f' start="{start}"' if start != 1 else ""
+    return f"<{tag}{attr}>{body}</{tag}>", i
 
 
 def markdown_to_html(md):
@@ -316,10 +352,7 @@ def markdown_to_html(md):
             while i < len(lines) and lines[i].startswith("|"):
                 rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
                 i += 1
-            head, body = rows[0], [r for r in rows[1:] if not all(set(c) <= set("-: ") for c in r)]
-            t = "<div class=\"tbl-scroll\"><table class=\"bt\"><thead><tr>" + "".join(f"<th>{inline(c)}</th>" for c in head) + "</tr></thead><tbody>"
-            t += "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>" for r in body)
-            out.append(t + "</tbody></table></div>")
+            out.append(table_html(rows))
         elif line.startswith(">"):
             quote = []
             while i < len(lines) and lines[i].startswith(">"):
