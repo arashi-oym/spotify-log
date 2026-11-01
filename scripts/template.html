@@ -2860,7 +2860,8 @@ body[data-sk=home] .sk-all{display:block}
   var SEARCH = {scope: 'all', type: 'both', q: ''};
   var ARTIST_LIST = Object.keys(ARTIST_SONGS);
   function norm(s){ return s.toLowerCase().normalize('NFKC').replace(/[\u30a1-\u30f6]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0x60); }); } // カタカナ→ひらがな寄せ＋全角半角統一
-  var SONG_NORM = SONGS.map(function(sg){ return norm(sg.t + ' ' + sg.a); });
+  // 曲は「曲名」だけで探す（アーティスト名での一致は「アーティスト」側に出す）
+  var SONG_NORM = SONGS.map(function(sg){ return norm(sg.t); });
   var ARTIST_NORM = ARTIST_LIST.map(norm);
 
   function countInCurrent(type, key){
