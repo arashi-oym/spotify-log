@@ -1,10 +1,10 @@
 {
  "tokenHash": "030736b8b0",
  "tokenSince": "2026-09-28",
- "state": "ok",
- "code": "",
- "message": "",
- "at": "2026-11-02T09:58:20+00:00",
+ "state": "temporary",
+ "code": "temporary",
+ "message": "Spotifyが混み合っているか、一時的に応答していません（再生履歴の取得・502）。",
+ "at": "2026-11-02T10:00:43+00:00",
  "lastSuccess": "2026-11-02T09:58:20+00:00",
  "usage": [
   [
