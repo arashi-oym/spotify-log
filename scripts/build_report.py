@@ -472,7 +472,8 @@ def main():
             sg = songs[index[k]]
             if r["src"] == "live":
                 sg[0], sg[1] = r["track"] or sg[0], r["artists"] or sg[1]
-            if r["image"] and not sg[2]:
+            # ジャケ写は新しい記録のものを優先（Spotify側で画像が変わったら、次に聴いたときに反映）
+            if r["image"] and (r["src"] == "live" or not sg[2]):
                 sg[2] = short_img(r["image"])
         t = int(r["dt"].timestamp())
         plays += [t - prev, index[k]]     # 容量を減らすため、前の再生からの秒数で保存

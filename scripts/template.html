@@ -1777,6 +1777,7 @@ body[data-sk=home] .sk-all{display:block}
     $('stRunAdded').textContent = n(R.added, '件');
     $('stRunLooked').textContent = n(R.looked, '件');
     $('stRunArtists').innerHTML = esc(n(R.artists, '件')) + (R.artistsLeft ? left(R.artistsLeft, '組') : (R.artistsLeft === 0 ? ' <small>（すべて取得済み）</small>' : ''));
+    if (R.artistsChecked) $('stRunArtists').innerHTML += '<br><small>写真の確認 ' + esc(fmt(R.artistsChecked)) + '件' + (R.artistsChanged ? '・新しい写真に差し替え ' + esc(fmt(R.artistsChanged)) + '件' : '') + '</small>';
     $('stRunJackets').innerHTML = esc(n(R.jackets, '曲')) + (R.jacketsLeft ? left(R.jacketsLeft, '曲') : (R.jacketsLeft === 0 ? ' <small>（すべて取得済み）</small>' : ''));
     var req = n(R.requests, '回') + ' <small>（直近24時間で ' + fmt(R.used24 || 0) + '/' + fmt(R.budget || 0) + '回）</small>';
     if (R.coolingUntil && R.coolingUntil > NOW) req = '休憩中 <small>（' + when(R.coolingUntil) + 'ごろまで・Spotifyの制限）</small>';

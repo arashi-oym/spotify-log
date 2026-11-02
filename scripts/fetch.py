@@ -477,7 +477,7 @@ def update_artists(token, rows, limit):
         except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
             print(f"アーティスト写真の取得を中断しました（次回また続きから）: {e}")
             break
-        cache[aid] = {"name": a.get("name", ""), "image": pick_image(a)}
+        cache[aid] = {"name": a.get("name", ""), "image": pick_image(a), "at": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
         got += 1
         time.sleep(PACE)
     if cache:
@@ -486,6 +486,59 @@ def update_artists(token, rows, limit):
     REPORT["artistsLeft"] = left
     print(f"アーティスト写真 {got}件を取得（残り 約{left:,}組）")
     return got
+
+
+REFRESH_RECENT_DAYS = 14    # 最近30日に聴いたアーティストは、写真が変わっていないか2週間ごとに確認
+REFRESH_OTHER_DAYS = 182    # それ以外のアーティストは半年ごと
+
+
+def refresh_artists(token, rows):
+    """Spotify側でアーティスト写真が変わっていたら差し替える。
+    新しい再生・アーティスト写真・過去曲のジャケ写の処理で余った問い合わせ回数だけを使い、最近よく聴く人から確認する"""
+    if cooling() or BUDGET.left <= 0 or not ARTISTS_PATH.exists():
+        return 0, 0
+    try:
+        cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
+    except ValueError:
+        return 0, 0
+    now = datetime.now(timezone.utc)
+    recent_cut = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%S")
+    last = {}
+    counts = artist_play_counts(rows, last)
+    def due(aid):
+        days = REFRESH_RECENT_DAYS if last.get(aid, "") >= recent_cut else REFRESH_OTHER_DAYS
+        return (cache[aid].get("at") or "") <= (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    todo = sorted((aid for aid in cache if SPOTIFY_ID.match(aid) and aid in counts and due(aid)),
+                  key=lambda k: (last.get(k, "") >= recent_cut, counts[k], last.get(k, "")), reverse=True)
+    checked = changed = 0
+    for aid in todo:
+        if not BUDGET.take():
+            break
+        try:
+            a = api_get(token, f"/artists/{aid}")
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 404):
+                cache[aid]["at"] = now.strftime("%Y-%m-%d")
+                continue
+            if e.code == 429:
+                hit_limit(e)
+            break
+        except (urllib.error.URLError, socket.timeout, TimeoutError):
+            break
+        img = pick_image(a)
+        if img and img != cache[aid].get("image"):
+            cache[aid]["image"] = img
+            changed += 1
+        if a.get("name"):
+            cache[aid]["name"] = a["name"]
+        cache[aid]["at"] = now.strftime("%Y-%m-%d")
+        checked += 1
+        time.sleep(PACE)
+    if checked:
+        ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"アーティスト写真の確認 {checked}件（新しい写真に差し替え {changed}件）")
+    REPORT.update(artistsChecked=checked, artistsChanged=changed)
+    return checked, changed
 
 
 def sync():
@@ -600,6 +653,7 @@ def sync():
     # 残りの回数の使い方：アーティスト写真を先に、残りを過去の曲のジャケ写に
     got = update_artists(token, rows, BUDGET.left)
     enrich_history(token)
+    refresh_artists(token, rows)   # さらに余った分で、写真が変わっていないかを確認
 
     print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト写真 {got}件")
     REPORT.update(added=added, looked=looked, artists=got)
