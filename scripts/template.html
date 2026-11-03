@@ -250,7 +250,7 @@ button{font-family:inherit;}
 .status dd{color:var(--dark);font-weight:600;font-variant-numeric:tabular-nums;}
 .live{display:inline-flex;align-items:center;gap:6px;}
 .st-sub{font-size:11.5px;font-weight:700;color:var(--text-sub);border-top:1px solid var(--line);padding-top:10px;margin:12px 0 6px;}
-.st-song{all:unset;cursor:pointer;color:var(--corp-ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--corp-border);text-underline-offset:3px;}
+.st-song{all:unset;display:inline;overflow-wrap:anywhere;cursor:pointer;color:var(--corp-ink);font-weight:700;text-decoration:underline;text-decoration-color:var(--corp-border);text-underline-offset:3px;}
 .st-song:hover{text-decoration-color:currentColor;}
 .st-song:focus-visible{outline:2px solid var(--corp);outline-offset:2px;border-radius:4px;}
 .status dd small{font-weight:500;color:var(--text-sub);}
@@ -585,7 +585,7 @@ body.modal-lock #toTop{display:none;}
 .d-kind{font-family:var(--font-display);font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--corp-ink);}
 .d-name{font-size:22px;font-weight:800;color:var(--dark);line-height:1.3;word-break:break-word;margin-top:2px;}
 .d-sub{font-size:13px;color:var(--text-sub);margin-top:3px;line-height:1.6;}
-.d-link{border:0;background:none;padding:0;font:inherit;color:var(--corp-ink);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+.d-link{display:inline;text-align:inherit;overflow-wrap:anywhere;border:0;background:none;padding:0;font:inherit;color:var(--corp-ink);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
 .d-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .d-badge{font-size:11px;font-weight:700;border-radius:980px;padding:3px 10px;background:var(--corp-pale);color:var(--corp-ink);}
 .d-badge.strong{background:var(--corp);color:var(--on-corp);}
@@ -1163,6 +1163,7 @@ body[data-sk=home] .sk-all{display:block}
 @media (max-width:760px){ .pm-range .field{flex:1 1 100%} }
 @media (max-width:420px){ .pick-mode .seg{width:100%} .sk-pickx{top:13px} }
 .rk .bar i,.cb i{transition:none!important}
+.d-link:focus-visible,.st-song:focus-visible{outline:2px solid #0071e3;outline-offset:2px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -1724,7 +1725,7 @@ body[data-sk=home] .sk-all{display:block}
   $('stChecked').textContent = when(ST.lastSuccess || null);
   if (PLAYS.length) {
     var lastIdx = PLAYS[PLAYS.length-1][1], lastSong = SONGS[lastIdx] || {};
-    $('stLast').innerHTML = '<button type="button" class="st-song" data-song="' + lastIdx + '">' + esc(lastSong.t || '―') + '</button>'
+    $('stLast').innerHTML = '<span role="button" tabindex="0" class="st-song" data-song="' + lastIdx + '">' + esc(lastSong.t || '―') + '</span>'
       + '<br><small>' + esc((lastSong.a || '') + '・' + when(LAST_PLAY)) + '</small>';
   }
   function day(t){ return when(t).replace(/\d{1,2}:\d{2}$/, ''); }
@@ -2054,7 +2055,7 @@ body[data-sk=home] .sk-all{display:block}
       + '<div class="d-kind">' + (isSong ? 'SONG' : 'ARTIST') + '</div><div class="d-name">' + esc(name) + '</div>';
     if (isSong) {
       h += '<div class="d-sub">' + sg.a.split(' / ').map(function(n){
-        return ARTIST_SONGS[n] ? '<button type="button" class="d-link" data-artist="'+esc(n)+'" data-push="1">'+esc(n)+'</button>' : esc(n);
+        return ARTIST_SONGS[n] ? '<span role="button" tabindex="0" class="d-link" data-artist="'+esc(n)+'" data-push="1">'+esc(n)+'</span>' : esc(n);
       }).join(' / ') + '</div>';
     } else {
       h += '<div class="d-sub">聴いた曲 ' + fmt(Object.keys(songsIn).length) + '曲（' + esc(rangeLabel) + '）</div>';
@@ -2192,7 +2193,7 @@ body[data-sk=home] .sk-all{display:block}
   }
   document.addEventListener('click', function(e){ var el = detailTarget(e); if (el) activate(el); });
   document.addEventListener('keydown', function(e){
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.tap[data-song],.tap[data-artist],.tap[data-overview],.tap[data-bucket],.tap[data-rf],.tap[data-discover]')) { e.preventDefault(); activate(e.target); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.d-link[data-song],.d-link[data-artist],.st-song[data-song],.tap[data-song],.tap[data-artist],.tap[data-overview],.tap[data-bucket],.tap[data-rf],.tap[data-discover]')) { e.preventDefault(); activate(e.target); }
     if (e.key === 'Escape' && $('detailModal').classList.contains('open') && !$('guideModal').classList.contains('open')) closeDetail();
   });
   /* ============================================================
@@ -2423,7 +2424,7 @@ body[data-sk=home] .sk-all{display:block}
       var c = e.target.closest('circle'); if (!c) return;
       var i = +c.dataset.a, k = +c.dataset.k, v = ranks[i][k], m = months[k];
       $('bumpCap').innerHTML = '<b>' + Math.floor(m/12) + '年' + (m%12+1) + '月</b>：' + esc(top[i]) + ' '
-        + (v.c ? (v.real) + '位（' + fmt(v.c) + '回）' : '再生なし') + ' <button type="button" class="d-link" data-artist="'+esc(top[i])+'">詳しく ›</button>';
+        + (v.c ? (v.real) + '位（' + fmt(v.c) + '回）' : '再生なし') + ' <span role="button" tabindex="0" class="d-link" data-artist="'+esc(top[i])+'">詳しく ›</span>';
     });
   }
 
@@ -2541,7 +2542,7 @@ body[data-sk=home] .sk-all{display:block}
   }
   function monthLabel(m){ return Math.floor(m/12) + '年' + (m%12 + 1) + '月'; }
   function monthAttr(m){ return rangeAttr(monthRange(Math.floor(m/12), m%12 + 1)); }
-  function songChip(idx, push){ return '<button type="button" class="d-link" data-song="'+idx+'"'+(push ? ' data-push="1"' : '')+'>'+esc(SONGS[idx].t)+'</button>'; }
+  function songChip(idx, push){ return '<span role="button" tabindex="0" class="d-link" data-song="'+idx+'"'+(push ? ' data-push="1"' : '')+'>'+esc(SONGS[idx].t)+'</span>'; }
 
   /* ---------- 曲・アーティストの年表のデータ ---------- */
   function itemTimeline(cur, all){
