@@ -1185,8 +1185,9 @@ body:not([data-sk=log]) #progressCard{display:none!important}
 .pg-of{font-family:var(--font-display);font-size:13px;color:var(--text-faint)}
 .pg-quota.pg-low .pg-big{color:var(--warn)}.pg-quota.pg-empty .pg-big{color:var(--bad)}
 .pg-gauge{position:relative;height:6px;border-radius:999px;background:var(--fill);margin-top:10px;overflow:hidden}
-.pg-gauge .u{position:absolute;inset:0 auto 0 0;background:var(--pg-rail)}
-.pg-gauge .lf{position:absolute;top:0;bottom:0;right:0;background:var(--g-grad)}
+.pg-gauge .u{position:absolute;inset:0 auto 0 0;background:var(--g-grad);border-radius:999px}
+.pg-low .pg-gauge .u{background:linear-gradient(90deg,#ffc56b,#ff9500)}
+.pg-empty .pg-gauge .u{background:linear-gradient(90deg,#ff8a80,#ff3b30)}
 .pg-gauge::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1.5px),var(--surface) calc(10% - 1.5px) 10%)}
 .pg-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-faint);margin-top:7px}
 .pg-meta svg{width:11px;height:11px;vertical-align:-1px;margin-right:3px}
@@ -1223,6 +1224,9 @@ body:not([data-sk=log]) #progressCard{display:none!important}
 @media (prefers-reduced-motion:reduce){.pg-flow .now .pg-node::before{animation:none}}
 @media (max-width:480px){ .pg-t{white-space:normal;line-height:1.45;padding-top:1px} .pg-v{align-self:start} }
 @media (min-width:1101px){ #progressCard{order:-1} }
+.hm.hm-flash{animation:hmFlash 1.4s var(--ap-out)}
+@keyframes hmFlash{0%{box-shadow:0 0 0 0 rgba(0,113,227,0)}20%{box-shadow:0 0 0 6px rgba(0,113,227,.25)}100%{box-shadow:0 0 0 0 rgba(0,113,227,0)}}
+.hm{border-radius:10px}
 </style>
 </head>
 <body>
@@ -1790,11 +1794,14 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     function pctTxt(p, done){ if (!done && p >= 99.5) p = 99; var d = p < 10 && p > 0 ? 1 : 0; return '<span class="pg-c" data-to="' + p.toFixed(d) + '" data-dec="' + d + '">' + p.toFixed(d) + '</span>%'; }
     var used = Q.used || 0, budget = Q.budget || 590, left = Math.max(0, budget - used), r = left / budget;
     var ic = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10.2 6A4.2 4.2 0 1 1 9 3.1"/><path d="M9.5 1v2.4H7.1"/></svg>';
-    var h = '<div class="pg-quota' + (r <= 0.05 ? ' pg-empty' : r <= 0.2 ? ' pg-low' : '') + '">'
-      + '<div class="pg-row"><span class="pg-l">Spotifyへの問い合わせ（直近24時間）</span><span class="pg-big"><span class="pg-c" data-to="' + left + '">' + fmt(left) + '</span><small>回 残り</small></span><span class="pg-of">/ ' + fmt(budget) + '回</span></div>'
-      + '<div class="pg-gauge"><span class="u" data-pw="' + (used / budget * 100).toFixed(1) + '"></span><span class="lf" style="width:' + (r * 100).toFixed(1) + '%"></span></div>'
-      + '<div class="pg-meta"><span>' + fmt(used) + '回 使用' + (Q.perRun ? ' ・ 1回の確認で約' + fmt(Q.perRun) + '回まで' : '') + '</span>'
-      + (Q.next && Q.next.n ? '<span>' + ic + hm(Q.next.at) + 'ごろ ＋' + fmt(Q.next.n) + '回</span>' : '') + '</div></div>';
+    // 使った回数を主役に：数字は「使った回数 / 590回」、棒は使った分を伸ばす。
+    // 上限いっぱいまで使うのは正常な動き（余った回数を作業に回しているため）なので、警告の色にはしない
+    var ur = used / budget;
+    var h = '<div class="pg-quota">'
+      + '<div class="pg-row"><span class="pg-l">Spotifyへの問い合わせ（直近24時間）</span><span class="pg-big"><span class="pg-c" data-to="' + used + '">' + fmt(used) + '</span><small>回</small></span><span class="pg-of">/ ' + fmt(budget) + '回</span></div>'
+      + '<div class="pg-gauge"><span class="u" data-pw="' + Math.min(100, ur * 100).toFixed(1) + '"></span></div>'
+      + '<div class="pg-meta"><span>残り ' + fmt(left) + '回' + (Q.perRun ? ' ・ 1回の確認で約' + fmt(Q.perRun) + '回まで' : '') + '</span>'
+      + (Q.next && Q.next.n ? '<span>' + ic + hm(Q.next.at) + 'ごろ ' + fmt(Q.next.n) + '回分が空く</span>' : '') + '</div></div>';
     var T = [['new', '新しい再生の記録', null, '', ''],
              ['artists', 'アーティスト写真', P.artists, '組', ''],
              ['jackets', '過去曲のジャケ写', P.jackets, '曲', ''],
@@ -2300,6 +2307,7 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     return el;
   }
   function activate(el){
+    if (el.dataset.jumpHeat) { jumpHeat(); return; }
     if (el.dataset.rf || el.dataset.discover) { el.click(); return; }
     if (el.dataset.overview) { openDetail({type:'all'}, false); return; }
     if (el.dataset.bucket) { closeDetail(); applyCustom(bucketRange(+el.dataset.bucket, el.dataset.scale)); return; }
@@ -2308,8 +2316,16 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     else openDetail({type:'artist', name:el.dataset.artist}, push);
   }
   document.addEventListener('click', function(e){ var el = detailTarget(e); if (el) activate(el); });
+  // 「いちばん聴いた時間帯」を押したら、曜日 × 時間帯 の表へ移動して、その時間の列を少し光らせる
+  function jumpHeat(){
+    var hm = $('hm'); if (!hm) return;
+    var y = hm.getBoundingClientRect().top + window.pageYOffset - 140;
+    try { window.scrollTo({top: y, behavior: 'smooth'}); } catch(_) { window.scrollTo(0, y); }
+    hm.classList.remove('hm-flash'); void hm.offsetWidth; hm.classList.add('hm-flash');
+  }
+  document.addEventListener('click', function(e){ if (e.target.closest('[data-jump-heat]')) jumpHeat(); });
   document.addEventListener('keydown', function(e){
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.d-link[data-song],.d-link[data-artist],.st-song[data-song],.tap[data-song],.tap[data-artist],.tap[data-overview],.tap[data-bucket],.tap[data-rf],.tap[data-discover]')) { e.preventDefault(); activate(e.target); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.tap[data-jump-heat],.d-link[data-song],.d-link[data-artist],.st-song[data-song],.tap[data-song],.tap[data-artist],.tap[data-overview],.tap[data-bucket],.tap[data-rf],.tap[data-discover]')) { e.preventDefault(); activate(e.target); }
     if (e.key === 'Escape' && $('detailModal').classList.contains('open') && !$('guideModal').classList.contains('open')) closeDetail();
   });
   /* ============================================================
@@ -2367,16 +2383,16 @@ body:not([data-sk=log]) #progressCard{display:none!important}
 
   /* ---------- 記録 ---------- */
   function recordsHTML(inR, from, to, R){
-    var dayCount = {}, nightCount = {}, monthCount = {}, hourCount = {};
+    var dayCount = {}, hourCount = {};
     inR.forEach(function(p){
       var d = dayIndex(p[0]), h = hourOf(p[0]);
       dayCount[d] = (dayCount[d]||0) + 1;
-      if (h < 5) nightCount[d] = (nightCount[d]||0) + 1;
-      var mk = bucketKey(p[0], 'month'); monthCount[mk] = (monthCount[mk]||0) + 1;
       hourCount[h] = (hourCount[h]||0) + 1;
     });
     function argmax(o){ var bk = null, bv = 0; Object.keys(o).forEach(function(k){ if (o[k] > bv) { bv = o[k]; bk = +k; } }); return [bk, bv]; }
     var tiles = [];
+    // 並び：①日単位の続き（最長の連続記録・いまの連続記録）→ ②いつ聴いたか（日・時間帯）→ ③ひと続きの聴き方（連続再生・リピート）
+    //       2列でも3列でも、関係の深いものが隣・近くに来る順番
     // 最長連続
     var days = Object.keys(dayCount).map(Number).sort(function(a,b){return a-b;}), best = [0,0,0], run = 0, start = 0;
     days.forEach(function(d, i){ if (i && d === days[i-1] + 1) run++; else { run = 1; start = d; } if (run > best[0]) best = [run, start, d]; });
@@ -2388,26 +2404,35 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     if (d0 != null) { while (all[d0 - cur]) cur++; }
     tiles.push('<div class="rec"><span class="tagnow">今日の時点</span><div class="ri">📅</div><div class="rk2">いまの連続記録</div><div class="rv">'+fmt(cur)+'<small>日</small></div><div class="rs">'
       + (cur ? (d0 === today ? '今日も聴いています' : '今日聴けば記録更新') : '最後に聴いた日：'+ymd(LAST_PLAY)) + '</div></div>');
+    // いちばん聴いた日
+    var bd = argmax(dayCount);
+    tiles.push('<div class="rec tap" role="button" tabindex="0"'+rangeAttr(dayRangeObj(bd[0]))+'><div class="ri">🏆</div><div class="rk2">いちばん聴いた日</div><div class="rv">'+fmt(bd[1])+'<small>回</small></div><div class="rs">'+fullLabel(bd[0], 'day')+'</div></div>');
+    // いちばん聴いた時間帯（選んだ期間の中で）
+    var bh = argmax(hourCount), share = inR.length ? Math.round(bh[1] / inR.length * 100) : 0;
+    tiles.push(bh[0] != null
+      ? '<div class="rec tap" role="button" tabindex="0" data-jump-heat="1"><div class="ri">⏰</div><div class="rk2">いちばん聴いた時間帯</div><div class="rv">'+bh[0]+'<small>時台</small></div><div class="rs">'+fmt(bh[1])+'回（全体の'+share+'%）</div></div>'
+      : '<div class="rec"><div class="ri">⏰</div><div class="rk2">いちばん聴いた時間帯</div><div class="rv">―</div><div class="rs">この期間の再生はありません</div></div>');
+    // 最長の連続再生：曲と曲のあいだが30分以上空かずに聴き続けた、いちばん長いまとまり
+    var GAP = 30 * 60000, ses = null, cs = null;
+    inR.forEach(function(p, i){
+      var end = p[0] + Math.max(1, SONGS[p[1]].min || 3) * 60000;
+      if (cs && p[0] - cs.last <= GAP) { cs.last = Math.max(cs.last, end); cs.n++; }
+      else { cs = {from: p[0], last: end, n: 1}; }
+      if (!ses || cs.last - cs.from > ses.last - ses.from) ses = {from: cs.from, last: cs.last, n: cs.n};
+    });
+    if (ses) {
+      var mins = Math.round((ses.last - ses.from) / 60000), hh = Math.floor(mins / 60), mm = mins % 60;
+      var hmS = function(t){ var d = new Date(t + 9*HOUR); return d.getUTCHours() + ':' + ('0' + d.getUTCMinutes()).slice(-2); };
+      var jd = jst(ses.from), je = jst(ses.last), ny = jst(NOW).y;
+      var dl = function(j){ return (j.y !== ny ? j.y + '/' : '') + j.m + '/' + j.d; };   // 今年でなければ年も付ける
+      var lab = dl(jd) + ' ' + hmS(ses.from) + '〜' + (je.d !== jd.d || je.m !== jd.m || je.y !== jd.y ? dl(je) + ' ' : '') + hmS(ses.last);
+      tiles.push('<div class="rec tap" role="button" tabindex="0"'+rangeAttr({label: lab, from: ses.from, to: ses.last + 1, kind: 'range'})+'><div class="ri">🎧</div><div class="rk2">最長の連続再生</div><div class="rv">'
+        + (hh ? fmt(hh)+'<small>時間</small>' : '') + mm + '<small>分</small></div><div class="rs">'+esc(lab)+'・'+fmt(ses.n)+'曲</div></div>');
+    }
     // 最長リピート（同じ曲を続けて聴いた回数）
     var rb = [0, null, 0], rr = 0;
     inR.forEach(function(p, i){ if (i && p[1] === inR[i-1][1]) rr++; else rr = 1; if (rr > rb[0]) rb = [rr, p[1], p[0]]; });
     tiles.push('<div class="rec tap" role="button" tabindex="0" data-song="'+rb[1]+'"><div class="ri">🔁</div><div class="rk2">最長リピート</div><div class="rv">'+fmt(rb[0])+'<small>回連続</small></div><div class="rs">'+esc(SONGS[rb[1]].t)+'（'+ymd(rb[2])+'）</div></div>');
-    // いちばん聴いた日
-    var bd = argmax(dayCount);
-    tiles.push('<div class="rec tap" role="button" tabindex="0"'+rangeAttr(dayRangeObj(bd[0]))+'><div class="ri">🏆</div><div class="rk2">いちばん聴いた日</div><div class="rv">'+fmt(bd[1])+'<small>回</small></div><div class="rs">'+fullLabel(bd[0], 'day')+'</div></div>');
-    // いちばん聴いた月（2か月以上）／ 時間帯
-    if (Object.keys(monthCount).length >= 2) {
-      var bm = argmax(monthCount), mr = monthRange(Math.floor(bm[0]/12), bm[0]%12 + 1);
-      tiles.push('<div class="rec tap" role="button" tabindex="0"'+rangeAttr(mr)+'><div class="ri">🗓</div><div class="rk2">いちばん聴いた月</div><div class="rv">'+fmt(bm[1])+'<small>回</small></div><div class="rs">'+mr.label+'</div></div>');
-    } else {
-      var bh = argmax(hourCount);
-      tiles.push('<div class="rec"><div class="ri">⏰</div><div class="rk2">いちばん聴いた時間</div><div class="rv">'+bh[0]+'<small>時台</small></div><div class="rs">'+fmt(bh[1])+'回</div></div>');
-    }
-    // 深夜にいちばん聴いた日
-    var bn = argmax(nightCount);
-    tiles.push(bn[0] != null
-      ? '<div class="rec tap" role="button" tabindex="0"'+rangeAttr(dayRangeObj(bn[0]))+'><div class="ri">🌙</div><div class="rk2">深夜（0〜5時）の最多</div><div class="rv">'+fmt(bn[1])+'<small>回</small></div><div class="rs">'+fullLabel(bn[0], 'day')+'</div></div>'
-      : '<div class="rec"><div class="ri">🌙</div><div class="rk2">深夜（0〜5時）の最多</div><div class="rv">0<small>回</small></div><div class="rs">深夜の再生はありません</div></div>');
     return '<div class="recs">' + tiles.join('') + '</div><p class="an-note">タイルを押すと、その日・その期間のランキングや曲の詳細を表示します。</p>';
   }
 
@@ -2918,9 +2943,8 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     rec_now: ['いまの連続記録', '今日からさかのぼって、毎日1曲以上聴き続けている日数です。今日まだ聴いていなくても、昨日まで続いていれば昨日までの日数を数えます。1日でも聴かない日があると0に戻ります。上部で選んだ期間には関係なく、今日の時点で数えます。'],
     rec_repeat: ['最長リピート', '同じ曲を、ほかの曲をはさまずに続けて再生した回数の最長記録です。押すと、その曲の詳細を表示します。'],
     rec_day: ['いちばん聴いた日', '選んだ期間で、再生回数がいちばん多かった日です（日本時間の0時〜24時）。押すと、その日のランキングを表示します。'],
-    rec_month: ['いちばん聴いた月', '選んだ期間で、再生回数がいちばん多かった月です。押すと、その月のランキングを表示します。'],
-    rec_hour: ['いちばん聴いた時間', '選んだ期間で、再生回数がいちばん多かった時間帯です（期間が短いときは「月」の代わりに表示します）。'],
-    rec_night: ['深夜（0〜5時）の最多', '0時〜4時59分の再生回数がいちばん多かった日です。日付は、聴いた時点の日付で数えます（例：火曜の深夜1時は火曜日）。'],
+    rec_hour: ['いちばん聴いた時間帯', '選んだ期間の中で、再生回数がいちばん多かった時間帯（1時間ごと）です。押すと、分析の「曜日 × 時間帯」に移動します。'],
+    rec_session: ['最長の連続再生', '曲と曲のあいだが30分以上空かずに聴き続けた、いちばん長いまとまりです（最後の曲は曲の長さの分まで数えます）。押すと、そのあいだに聴いた曲のランキングを表示します。'],
     type: ['リスナータイプ', '時間帯ごとの再生の割合から判定します。<ul><li>朝型：5〜10時</li><li>昼型：10〜17時</li><li>夜型：17〜23時</li><li>深夜型：23〜5時（22%以上なら優先）</li></ul>週末の1日あたりの再生が平日の1.3倍以上なら「週末型」、0.77倍以下なら「平日型」、その間は「毎日コツコツ型」です。30回未満の期間は判定しません。'],
     heatmap: ['曜日 × 時間帯', '曜日と時間帯（1時間ごと）の再生回数です。色が濃いほどよく聴いています。時刻は日本時間です。マス目を押すと回数を表示します。'],
     repeat: ['リピート度', '「1 −（聴いた曲の種類 ÷ 再生回数）」で計算します。右に行くほど、同じ曲を何度もくり返し聴いています。<ul><li>75%以上：1曲を聴き込む派</li><li>50〜75%：バランス派</li><li>50%未満：いろいろ聴く派</li></ul>'],
@@ -2937,7 +2961,7 @@ body:not([data-sk=log]) #progressCard{display:none!important}
   }
   HELP.sum_plays = ['再生回数', 'この期間に30秒以上再生した回数の合計です。押すと「再生回数の推移」を表示します。'];
   HELP.summary = helpList('サマリーの見方', ['sum_plays', 'sum_songs', 'sum_artists', 'sum_daily']);
-  HELP.records = helpList('記録の見方', ['rec_streak', 'rec_now', 'rec_repeat', 'rec_day', 'rec_month', 'rec_hour', 'rec_night'], 'タイルを押すと、その日・その期間のランキングや、曲の詳細を表示します。');
+  HELP.records = helpList('記録の見方', ['rec_streak', 'rec_now', 'rec_day', 'rec_hour', 'rec_session', 'rec_repeat'], 'タイルを押すと、その日・その期間のランキングや、曲の詳細を表示します。');
   var helpPop = document.createElement('div'), helpOn = null;
   helpPop.className = 'help-pop'; helpPop.setAttribute('role', 'tooltip'); document.body.appendChild(helpPop);
   function hideHelp(){ if (helpOn) helpOn.classList.remove('on'); helpOn = null; helpPop.classList.remove('show'); }
