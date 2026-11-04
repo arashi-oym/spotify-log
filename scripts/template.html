@@ -175,7 +175,7 @@ button{font-family:inherit;}
 .grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:18px;align-items:start;}
 .side-col{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);}
 /* スマホ・タブレット：サマリー → ランキング → 月ごと → 記録の状態 の順に並べ替える */
-@media (max-width:1100px){
+@media (max-width:1023px){
   .grid{display:flex;flex-direction:column;align-items:stretch;gap:0;}
   .main-col,.side-col{display:contents;}
   #summaryCard{order:1;} #rankCard{order:2;} #monthlyCard{order:3;} #statusCard{order:4;}
@@ -657,7 +657,7 @@ body.modal-lock #toTop{display:none;}
 
 .an-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;}
 .an-col{min-width:0;}
-@media (max-width:1100px){ .an-grid{grid-template-columns:minmax(0,1fr);gap:0;} }
+@media (max-width:1023px){ .an-grid{grid-template-columns:minmax(0,1fr);gap:0;} }
 .an-title{font-size:15px;font-weight:800;color:var(--dark);margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .an-title small{font-size:11.5px;font-weight:500;color:var(--text-faint);}
 
@@ -924,7 +924,7 @@ body{transition:background .4s var(--ap),color .4s var(--ap)}
 .sk-tabs{display:none}
 .sk-badge{position:absolute;width:9px;height:9px;border-radius:50%;display:none;top:6px;right:8px}
 .sk-badge.warn{display:block;background:#ff9500}.sk-badge.bad{display:block;background:var(--bad-solid)}
-@media (max-width:743px){
+@media (max-width:599px){
   .sk-top{display:none}
   .sk-tabs{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:220;background:var(--bar-bg);
     -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:1px solid color-mix(in srgb,var(--corp-border) 55%,transparent);padding-bottom:env(safe-area-inset-bottom)}
@@ -939,7 +939,7 @@ body{transition:background .4s var(--ap),color .4s var(--ap)}
 body[data-sk=home] #monthlyCard,body[data-sk=home] #statusCard{display:none}
 body[data-sk=rank] #summaryCard,body[data-sk=rank] #statusCard{display:none}
 body[data-sk=log] #summaryCard,body[data-sk=log] #rankCard,body[data-sk=log] #monthlyCard{display:none}
-@media (min-width:1101px){
+@media (min-width:1024px){
   body[data-sk=rank] .grid,body[data-sk=log] .grid{grid-template-columns:minmax(0,1fr)}
   body[data-sk=rank] .side-col,body[data-sk=log] .main-col{display:none}
   body[data-sk=rank] .main-col{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
@@ -1035,7 +1035,7 @@ body[data-sk=log] #summaryCard,body[data-sk=log] #rankCard,body[data-sk=log] #mo
 @keyframes skPop{from{opacity:0;transform:translateY(24px) scale(.97)}}
 .modal-panel{border-radius:24px}
 .modal-head{border-bottom:1px solid var(--line)}
-@media (max-width:743px){
+@media (max-width:599px){
   .modal{align-items:flex-end;padding:calc(env(safe-area-inset-top,0px) + 24px) 0 0}
   .modal-panel{border-radius:24px 24px 0 0;max-height:100%}
   @keyframes skPop{from{transform:translateY(100%)}}
@@ -1124,7 +1124,7 @@ body[data-sk=home] #moreBtn{display:none}
 .sk-all{display:none;width:100%;border:0;border-top:1px solid var(--line);background:none;color:var(--link);font:inherit;font-size:14px;font-weight:600;padding:14px;cursor:pointer}
 .sk-all:hover{background:var(--fill2)}
 body[data-sk=home] .sk-all{display:block}
-@media (min-width:1101px){
+@media (min-width:1024px){
   body[data-sk=home] .grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   body[data-sk=home] .side-col{order:-1}
 }
@@ -1138,7 +1138,7 @@ body[data-sk=home] .sk-all{display:block}
 .sk-slot:empty{display:none}
 .sk-ct{display:contents}
 .sk-dd.sk-left .sk-menu{left:0;right:auto;transform-origin:top left}
-@media (max-width:600px){
+@media (max-width:599px){
   #topbar{gap:4px;padding:0 8px 0 14px}
   .logo-text{font-size:1rem!important}
   .fetch-pill{padding:6px 9px!important}
@@ -1150,7 +1150,6 @@ body[data-sk=home] .sk-all{display:block}
   .alert.err{top:calc(env(safe-area-inset-top,0px) + 108px)}
 }
 @media (max-width:340px){ .logo-mark{display:none} }
-@media (min-width:421px) and (max-width:600px){ .sk-cap{margin:0 -16px;padding:8px 16px} }
 .pick-inner{position:relative}
 /* ✕は目立たせず、切り替えスイッチと同じ高さの右端にそっと置く */
 .sk-pickx{position:absolute;top:16px;right:12px;width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:var(--text-faint);font-size:15px;line-height:1;cursor:pointer;transition:background .2s,color .2s}
@@ -1170,7 +1169,7 @@ body[data-sk=home] .sk-all{display:block}
 ============================================================ */
 body:not([data-sk=log]) #progressCard{display:none!important}
 #progressCard{order:3}   /* 記録タブでは「データの更新」を「記録の状態」より先に */
-@media (min-width:1101px){
+@media (min-width:1024px){
   body[data-sk=log] .side-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;max-width:1200px}
   body[data-sk=log] .side-col > .card{margin-bottom:0}
 }
@@ -1223,10 +1222,69 @@ body:not([data-sk=log]) #progressCard{display:none!important}
 .pg-foot{font-size:11.5px;color:var(--text-faint);padding-top:10px;border-top:1px solid var(--line);margin-top:2px}
 @media (prefers-reduced-motion:reduce){.pg-flow .now .pg-node::before{animation:none}}
 @media (max-width:480px){ .pg-t{white-space:normal;line-height:1.45;padding-top:1px} .pg-v{align-self:start} }
-@media (min-width:1101px){ #progressCard{order:-1} }
+@media (min-width:1024px){ #progressCard{order:-1} }
 .hm.hm-flash{animation:hmFlash 1.4s var(--ap-out)}
 @keyframes hmFlash{0%{box-shadow:0 0 0 0 rgba(0,113,227,0)}20%{box-shadow:0 0 0 6px rgba(0,113,227,.25)}100%{box-shadow:0 0 0 0 rgba(0,113,227,0)}}
 .hm{border-radius:10px}
+/* 取得時刻の左の緑の点：文字の大きさに合わせる（em単位） */
+.pg-at{display:inline-flex;align-items:center;gap:.45em;white-space:nowrap}
+.pg-dot{width:.6em;height:.6em;border-radius:50%;background:#1db954;box-shadow:0 0 0 .2em rgba(29,185,84,.22);flex:none}
+#progressCard .card-head{flex-wrap:nowrap}#progressCard .card-head h2{flex:none}
+
+
+/* ============================================================
+   画面幅の段階（いちばん狭い 350 から 1920×1080 のPCまで。それより広い画面は全体を拡大）
+   XS 350〜399 ／ S 400〜479 ／ M 480〜599（ここまで下のタブ）
+   L 600〜767 ／ XL 768〜1023（上のスイッチ・1列）
+   2XL 1024〜1365 ／ 3XL 1366〜1919（2列）／ 4XL 1920〜（2列・横幅を広げる）
+============================================================ */
+.page{padding-left:var(--gut);padding-right:var(--gut)}
+#topbar{padding-left:var(--gut);padding-right:calc(var(--gut) - 6px)}
+.foot{padding-left:var(--gut);padding-right:var(--gut)}
+:root{--gut:32px}
+@media (max-width:1365px){:root{--gut:28px}}
+@media (max-width:1023px){:root{--gut:24px}}
+@media (max-width:767px){:root{--gut:20px}}
+@media (max-width:599px){:root{--gut:16px}}
+@media (max-width:479px){:root{--gut:12px}}
+@media (max-width:399px){:root{--gut:10px}}
+.sk-cap{margin-left:calc(-1 * var(--gut))!important;margin-right:calc(-1 * var(--gut))!important;padding-left:var(--gut)!important;padding-right:var(--gut)!important}
+@media (min-width:600px){.sk-cap{margin-left:0!important;margin-right:0!important;padding-left:2px!important;padding-right:2px!important}}
+
+/* XS：いちばん狭いスマホ（350〜399） */
+@media (max-width:399px){
+  .card-head{padding:16px 16px 4px}
+  .card-body{padding:10px 16px 16px}
+  .total-box{padding:16px}
+  .total-box .v{font-size:46px}
+  .logo-text{font-size:.95rem!important}
+  .sk-tabs button{font-size:10.5px}
+  .pg-big{font-size:30px}
+  .rk{gap:10px;padding-left:14px;padding-right:14px}
+}
+/* M：大きいスマホ・小さい折りたたみ（480〜599）：ただの拡大にならないよう、横に並べられる物は並べる */
+@media (min-width:480px) and (max-width:599px){
+  .pcards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .card-head{padding:22px 24px 6px}
+  .card-body{padding:12px 24px 24px}
+}
+/* L・XL：タブレット（600〜1023）：上のスイッチ。トップソングとトップアーティストは横並び、詳細は中央の窓 */
+@media (min-width:600px) and (max-width:1023px){
+  .pcards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .page{max-width:880px}
+  #topbar{max-width:none}
+}
+/* 4XL：1920以上は横幅を広げる */
+@media (min-width:1920px){
+  .page,#topbar,.foot,.pick-inner{max-width:1600px}
+}
+/* 1920より広い画面（2.5K・4K）は、文字や部品が小さくなりすぎないよう、画面の広さに合わせて全体を拡大 */
+@media (min-width:2200px){ html{zoom:1.15} }
+@media (min-width:2500px){ html{zoom:1.3} }
+@media (min-width:3000px){ html{zoom:1.55} }
+@media (min-width:3500px){ html{zoom:1.8} }
+/* いちばん狭い幅では、取得時刻を見出しの下の行へ（文字の大きさはそのまま） */
+@media (max-width:419px){ #progressCard .card-head{flex-wrap:wrap!important;row-gap:4px} #progressCard .pg-at{margin-left:0;flex-basis:100%} }
 </style>
 </head>
 <body>
@@ -1825,7 +1883,7 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     }).join('') + '</ol>'
       + '<p class="pg-foot">上から順に、余った問い合わせ回数を使います。ジャケ写は、その曲を聴いたときに新しい画像へ切り替わります。</p>';
     $('pgBody').innerHTML = h;
-    $('pgAt').textContent = hm(Q.at) + ' 取得';
+    $('pgAt').innerHTML = '<span class="pg-dot" aria-hidden="true"></span>' + esc(when(Q.at));   // 例：● 2026/11/5（木）5:00
     pgAnimate();
   }
   // 画面に入るたびに、棒・輪・数字を0から動かす
@@ -3289,7 +3347,7 @@ body:not([data-sk=log]) #progressCard{display:none!important}
     $('skCapText').innerHTML = h;
   }
   // スマホ：期間のプルダウンを期間の1行の先頭へ移し、ヘッダーにはページ名を出す
-  var mqN = matchMedia('(max-width: 600px)');
+  var mqN = matchMedia('(max-width: 599px)');
   function placeDD(){ var narrow = mqN.matches, slot = $('skSlot'), hdr = search.parentNode;
     if (narrow && dd.parentNode !== slot) { slot.appendChild(dd); dd.classList.add('sk-left'); }
     else if (!narrow && dd.parentNode === slot) { hdr.insertBefore(dd, search); dd.classList.remove('sk-left'); }
