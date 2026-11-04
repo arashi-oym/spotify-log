@@ -306,7 +306,7 @@ def history_songs(cache, rows):
     return songs, album_img
 
 
-def enrich_history(token):
+def enrich_history(token, phases=(1, 2)):
     """過去の履歴の曲のジャケ写・参加アーティスト・曲の長さを、問い合わせをできるだけ節約して埋める。
     ① 同じアルバムの別の曲でジャケ写が分かっていれば、問い合わせずにそのジャケ写を使う（参加アーティストなどはあとで）
     ② よく聴いた曲から（同じ回数なら最近聴いた曲から）1曲ずつ調べる
@@ -330,7 +330,7 @@ def enrich_history(token):
         if shared:
             TRACKS_PATH.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
         print(f"過去の履歴：同じアルバムから {shared}曲のジャケ写を設定。Spotifyの制限で休憩中のため、問い合わせはお休みします")
-        REPORT.update(jackets=shared, jacketsLeft=sum(1 for s in songs.values() if not s["image"] and any(t not in cache for t in s["ids"])))
+        REPORT.update(jackets=REPORT.get("jackets", 0) + shared, jacketsLeft=sum(1 for s in songs.values() if not s["image"] and any(t not in cache for t in s["ids"])))
         return shared
 
     by_album = {}
@@ -346,7 +346,9 @@ def enrich_history(token):
 
     asked = filled = 0
     stop = False
-    for phase in (1, 2):
+    for phase in phases:
+        if phase == 2 and todo(1):
+            break                                    # ジャケ写がそろうまでは④に進まない
         for k in todo(phase):
             s = songs[k]
             tid = next((t for t in s["ids"] if needs(t, phase)), None)
@@ -392,7 +394,7 @@ def enrich_history(token):
     finish = sum(1 for v in cache.values() if (v or {}).get("partial"))
     print(f"過去の履歴：ジャケ写 {filled + shared}曲分を取得（問い合わせ {asked}回・同じアルバムから {shared}曲）"
           f" / ジャケ写の残り 約{left:,}曲 / 参加アーティストなどの仕上げ残り 約{finish:,}曲")
-    REPORT.update(jackets=filled + shared, jacketsLeft=left, finishLeft=finish)
+    REPORT.update(jackets=REPORT.get("jackets", 0) + filled + shared, jacketsLeft=left, finishLeft=finish)
     return filled + shared
 
 
@@ -492,7 +494,7 @@ REFRESH_RECENT_DAYS = 14    # 最近30日に聴いたアーティストは、写
 REFRESH_OTHER_DAYS = 182    # それ以外のアーティストは半年ごと
 
 
-def refresh_artists(token, rows):
+def refresh_artists(token, rows, scope="recent"):
     """Spotify側でアーティスト写真が変わっていたら差し替える。
     新しい再生・アーティスト写真・過去曲のジャケ写の処理で余った問い合わせ回数だけを使い、最近よく聴く人から確認する"""
     if cooling() or BUDGET.left <= 0 or not ARTISTS_PATH.exists():
@@ -508,7 +510,9 @@ def refresh_artists(token, rows):
     def due(aid):
         days = REFRESH_RECENT_DAYS if last.get(aid, "") >= recent_cut else REFRESH_OTHER_DAYS
         return (cache[aid].get("at") or "") <= (now - timedelta(days=days)).strftime("%Y-%m-%d")
-    todo = sorted((aid for aid in cache if SPOTIFY_ID.match(aid) and aid in counts and due(aid)),
+    want_recent = scope == "recent"
+    todo = sorted((aid for aid in cache if SPOTIFY_ID.match(aid) and aid in counts
+                   and (last.get(aid, "") >= recent_cut) == want_recent and due(aid)),
                   key=lambda k: (last.get(k, "") >= recent_cut, counts[k], last.get(k, "")), reverse=True)
     checked = changed = 0
     for aid in todo:
@@ -537,8 +541,37 @@ def refresh_artists(token, rows):
     if checked:
         ARTISTS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
         print(f"アーティスト写真の確認 {checked}件（新しい写真に差し替え {changed}件）")
-    REPORT.update(artistsChecked=checked, artistsChanged=changed)
+    REPORT["artistsChecked"] = REPORT.get("artistsChecked", 0) + checked
+    REPORT["artistsChanged"] = REPORT.get("artistsChanged", 0) + changed
     return checked, changed
+
+
+def progress(rows):
+    """「データの更新」カード用の進み具合（件数だけ。問い合わせは使わない）"""
+    now = datetime.now(timezone.utc)
+    cut30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%S")
+    d14 = (now - timedelta(days=REFRESH_RECENT_DAYS)).strftime("%Y-%m-%d")
+    d182 = (now - timedelta(days=REFRESH_OTHER_DAYS)).strftime("%Y-%m-%d")
+    try:
+        art = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}") if ARTISTS_PATH.exists() else {}
+    except ValueError:
+        art = {}
+    last = {}
+    counts = artist_play_counts(rows, last)
+    ids = [a for a in counts if SPOTIFY_ID.match(a)]
+    recent = [a for a in ids if a in art and last.get(a, "") >= cut30]
+    other = [a for a in ids if a in art and last.get(a, "") < cut30]
+    out = {
+        "artists": {"total": len(ids), "done": sum(1 for a in ids if a in art), "noImage": sum(1 for a in ids if a in art and not art[a].get("image"))},
+        "recent": {"total": len(recent), "done": sum(1 for a in recent if (art[a].get("at") or "") > d14)},
+        "other": {"total": len(other), "done": sum(1 for a in other if (art[a].get("at") or "") > d182)},
+    }
+    if history_paths():
+        cache = load_tracks_cache()
+        songs, _ = history_songs(cache, rows)
+        out["jackets"] = {"total": len(songs), "done": sum(1 for s in songs.values() if s["image"] or all(t in cache for t in s["ids"]))}
+        out["finish"] = {"total": len(cache), "done": sum(1 for v in cache.values() if not (v or {}).get("partial"))}
+    return out
 
 
 def sync():
@@ -651,9 +684,16 @@ def sync():
     save_rows(rows)
 
     # 残りの回数の使い方：アーティスト写真を先に、残りを過去の曲のジャケ写に
-    got = update_artists(token, rows, BUDGET.left)
-    enrich_history(token)
-    refresh_artists(token, rows)   # さらに余った分で、写真が変わっていないかを確認
+    # 余った問い合わせ回数の使い道（上から順に。画面の見た目が良くなる順）
+    got = update_artists(token, rows, BUDGET.left)   # ② 初めて聴いた人の写真
+    enrich_history(token, phases=(1,))               # ③ 画像がない過去曲のジャケ写
+    refresh_artists(token, rows, "recent")           # ④ 最近30日に聴いた人の写真の確認（2週間ごと）
+    enrich_history(token, phases=(2,))               # ⑤ ジャケ写の仕上げ
+    refresh_artists(token, rows, "other")            # ⑥ そのほかの人の写真の確認（半年ごと）
+    try:
+        REPORT["progress"] = progress(rows)
+    except Exception as e:                           # 進み具合の集計に失敗しても、記録には影響させない
+        print(f"進み具合の集計を省略しました: {e}")
 
     print(f"新しい再生 {added}件 / 曲情報の補完 {looked}件 / アーティスト写真 {got}件")
     REPORT.update(added=added, looked=looked, artists=got)
@@ -696,6 +736,9 @@ def main():
     st["lastRun"] = dict(REPORT, at=now.isoformat(timespec="seconds"), requests=BUDGET.used,
                          used24=sum(n for _, n in usage), budget=DAILY_BUDGET,
                          coolingUntil=RATE["until"] or (st.get("cooldownUntil") if cooling() else "") or "")
+    if REPORT.get("progress"):
+        st["progress"] = REPORT.pop("progress")   # 「データの更新」カードの進み具合（失敗した回は前回の値のまま）
+        st["lastRun"].pop("progress", None)
     if RATE["until"]:
         st["cooldownUntil"] = RATE["until"]
     elif st.get("cooldownUntil") and not cooling():

@@ -406,9 +406,34 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v26"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+VERSION = "v27"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
 KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html", "template-v25.html",
              "setup.html", "import.html", "page-common.css"]
+
+
+def quota_info(st):
+    """問い合わせ枠：直近24時間で使った回数、上限、次に回数が戻る時刻と回数、1回の確認で使える目安"""
+    lr = st.get("lastRun") or {}
+    try:
+        base = datetime.fromisoformat(lr.get("at") or st.get("at"))
+    except (TypeError, ValueError):
+        return None
+    usage = []
+    for t, n in st.get("usage") or []:
+        try:
+            ts = datetime.fromisoformat(t)
+        except (TypeError, ValueError):
+            continue
+        if ts > base - timedelta(hours=24):
+            usage.append((ts, int(n)))
+    usage.sort()
+    nxt = None
+    if usage:
+        t0 = usage[0][0] + timedelta(hours=24)
+        nxt = {"at": int(t0.timestamp() * 1000), "n": sum(n for t, n in usage if t == usage[0][0])}
+    recent = sorted(n for _, n in usage[-6:]) or [0]
+    return {"used": sum(n for _, n in usage), "budget": lr.get("budget") or 590,
+            "perRun": recent[len(recent) // 2], "next": nxt, "at": int(base.timestamp() * 1000)}
 
 
 def update_zip_name(repo):
@@ -497,6 +522,8 @@ def main():
             "fetch": fetch_reminder(st),
             "lastExternal": to_ms(st.get("lastExternal")),
             "triggerExpires": os.environ.get("TRIGGER_TOKEN_EXPIRES", "").strip(),
+            "progress": st.get("progress"),
+            "quota": quota_info(st),
             "lastRun": dict(st.get("lastRun") or {}, at=to_ms((st.get("lastRun") or {}).get("at")),
                             coolingUntil=to_ms((st.get("lastRun") or {}).get("coolingUntil"))) if st.get("lastRun") else None,
         },

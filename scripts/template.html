@@ -1164,6 +1164,65 @@ body[data-sk=home] .sk-all{display:block}
 @media (max-width:420px){ .pick-mode .seg{width:100%} .sk-pickx{top:13px} }
 .rk .bar i,.cb i{transition:none!important}
 .d-link:focus-visible,.st-song:focus-visible{outline:2px solid #0071e3;outline-offset:2px;border-radius:4px}
+
+/* ============================================================
+   データの更新（記録タブ）：問い合わせ枠と、作業の流れ
+============================================================ */
+body:not([data-sk=log]) #progressCard{display:none!important}
+#progressCard{order:3}   /* 記録タブでは「データの更新」を「記録の状態」より先に */
+@media (min-width:1101px){
+  body[data-sk=log] .side-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;max-width:1200px}
+  body[data-sk=log] .side-col > .card{margin-bottom:0}
+}
+:root{--pg-rail:#dcdce1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-rail:#3a3a3c}}
+:root[data-theme="dark"]{--pg-rail:#3a3a3c}
+.pg-at{font-size:12px;color:var(--text-faint);font-weight:500}
+.pg-quota .pg-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.pg-quota .pg-l{font-size:12px;color:var(--text-sub);margin-right:auto;align-self:center}
+.pg-big{font-family:var(--font-display);font-weight:600;font-size:34px;line-height:1;letter-spacing:-.02em;color:var(--text)}
+.pg-big small{font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--text-sub);margin-left:3px}
+.pg-of{font-family:var(--font-display);font-size:13px;color:var(--text-faint)}
+.pg-quota.pg-low .pg-big{color:var(--warn)}.pg-quota.pg-empty .pg-big{color:var(--bad)}
+.pg-gauge{position:relative;height:6px;border-radius:999px;background:var(--fill);margin-top:10px;overflow:hidden}
+.pg-gauge .u{position:absolute;inset:0 auto 0 0;background:var(--pg-rail)}
+.pg-gauge .lf{position:absolute;top:0;bottom:0;right:0;background:var(--g-grad)}
+.pg-gauge::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1.5px),var(--surface) calc(10% - 1.5px) 10%)}
+.pg-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-faint);margin-top:7px}
+.pg-meta svg{width:11px;height:11px;vertical-align:-1px;margin-right:3px}
+.pg-flow{list-style:none;margin:18px 0 0;border-top:1px solid var(--line);padding-top:6px}
+.pg-flow li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr) auto;column-gap:12px;padding:10px 0 12px}
+.pg-flow li::before{content:"";position:absolute;left:10px;top:-4px;height:16px;width:2px;border-radius:2px;background:var(--pg-rail)}
+.pg-flow li:first-child::before{display:none}
+.pg-flow li.done::before,.pg-flow li.now::before{background:#1db954}
+.pg-flow li::after{content:"";position:absolute;left:10px;top:34px;bottom:-4px;width:2px;border-radius:2px;background:var(--pg-rail)}
+.pg-flow li:last-child::after{display:none}
+.pg-flow li.done::after{background:#1db954}
+.pg-node{width:22px;height:22px;position:relative}
+.pg-node svg{width:22px;height:22px;display:block;transform:rotate(-90deg)}
+.pg-node .trk{fill:none;stroke:var(--pg-rail);stroke-width:2.5}
+.pg-node .arc{fill:none;stroke:#1db954;stroke-width:2.5;stroke-linecap:round}
+.pg-flow .done .pg-node{border-radius:50%;background:#1db954;display:grid;place-items:center}
+.pg-flow .done .pg-node::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
+.pg-flow .now .pg-node::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--text);animation:pgPulse 1.8s ease-out infinite}
+@keyframes pgPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--text) 40%,transparent)}100%{box-shadow:0 0 0 6px transparent}}
+.pg-t{font-size:13.5px;font-weight:500;line-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.pg-flow .done .pg-t,.pg-flow .wait .pg-t{color:var(--text-sub)}
+.pg-flow .now .pg-t{font-weight:700}
+.pg-tag{font-size:11px;color:var(--text-faint);margin-left:6px;font-weight:500}
+.pg-flow .now .pg-tag{color:var(--corp)}
+.pg-v{font-family:var(--font-display);font-size:12.5px;color:var(--text-faint);line-height:22px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pg-v b{color:var(--text);font-weight:600}
+.pg-m{grid-column:2/4;display:grid;grid-template-columns:minmax(0,1fr) 44px;align-items:center;column-gap:10px;margin-top:6px}
+.pg-bar{height:3px;border-radius:999px;background:var(--fill);overflow:hidden}
+.pg-bar i{display:block;height:100%;border-radius:999px;background:var(--g-grad)}
+.pg-p{font-family:var(--font-display);font-size:12px;font-weight:600;color:var(--text-sub);text-align:right;font-variant-numeric:tabular-nums}
+.pg-flow .now .pg-p{color:var(--text)}
+.pg-sub{grid-column:2/4;font-size:11.5px;color:var(--text-faint);margin-top:4px}
+.pg-foot{font-size:11.5px;color:var(--text-faint);padding-top:10px;border-top:1px solid var(--line);margin-top:2px}
+@media (prefers-reduced-motion:reduce){.pg-flow .now .pg-node::before{animation:none}}
+@media (max-width:480px){ .pg-t{white-space:normal;line-height:1.45;padding-top:1px} .pg-v{align-self:start} }
+@media (min-width:1101px){ #progressCard{order:-1} }
 </style>
 </head>
 <body>
@@ -1267,6 +1326,10 @@ body[data-sk=home] .sk-all{display:block}
         </div>
       </section>
 
+      <section class="card" id="progressCard" hidden>
+        <div class="card-head"><h2>データの更新</h2><span class="push pg-at" id="pgAt"></span></div>
+        <div class="card-body" id="pgBody"></div>
+      </section>
       <section class="card" id="statusCard">
         <div class="card-head">
           <span class="ico" aria-hidden="true">↻</span>
@@ -1716,6 +1779,58 @@ body[data-sk=home] .sk-all{display:block}
   var ST = RAW.status || {};
   var GUIDE = RAW.guide || '#', ACTIONS = RAW.actions || '#';
   // 記録の状態の日時：ページを開いたままでも意味が変わらないよう、「今日」などではなく日付で書く（例：2026/10/15（木）23:49）
+  /* ---------- データの更新（問い合わせ枠と作業の進み具合） ---------- */
+  function renderProgress(){
+    var P = ST.progress, Q = ST.quota, card = $('progressCard');
+    if (!P || !Q) { card.hidden = true; return; }
+    card.hidden = false;
+    var RATE = Math.max(1, Math.round((Q.budget || 590) * 0.85));      // 1日に作業へ回せるおおよその回数
+    function hm(t){ var d = new Date(t + 9*3600000); return d.getUTCHours() + ':' + ('0' + d.getUTCMinutes()).slice(-2); }
+    function eta(n){ var d = n / RATE; return d < 1 ? '約' + Math.max(1, Math.ceil(d * 24)) + '時間' : '約' + Math.round(d) + '日'; }
+    function pctTxt(p, done){ if (!done && p >= 99.5) p = 99; var d = p < 10 && p > 0 ? 1 : 0; return '<span class="pg-c" data-to="' + p.toFixed(d) + '" data-dec="' + d + '">' + p.toFixed(d) + '</span>%'; }
+    var used = Q.used || 0, budget = Q.budget || 590, left = Math.max(0, budget - used), r = left / budget;
+    var ic = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10.2 6A4.2 4.2 0 1 1 9 3.1"/><path d="M9.5 1v2.4H7.1"/></svg>';
+    var h = '<div class="pg-quota' + (r <= 0.05 ? ' pg-empty' : r <= 0.2 ? ' pg-low' : '') + '">'
+      + '<div class="pg-row"><span class="pg-l">Spotifyへの問い合わせ（直近24時間）</span><span class="pg-big"><span class="pg-c" data-to="' + left + '">' + fmt(left) + '</span><small>回 残り</small></span><span class="pg-of">/ ' + fmt(budget) + '回</span></div>'
+      + '<div class="pg-gauge"><span class="u" data-pw="' + (used / budget * 100).toFixed(1) + '"></span><span class="lf" style="width:' + (r * 100).toFixed(1) + '%"></span></div>'
+      + '<div class="pg-meta"><span>' + fmt(used) + '回 使用' + (Q.perRun ? ' ・ 1回の確認で約' + fmt(Q.perRun) + '回まで' : '') + '</span>'
+      + (Q.next && Q.next.n ? '<span>' + ic + hm(Q.next.at) + 'ごろ ＋' + fmt(Q.next.n) + '回</span>' : '') + '</div></div>';
+    var T = [['new', '新しい再生の記録', null, '', ''],
+             ['artists', 'アーティスト写真', P.artists, '組', ''],
+             ['jackets', '過去曲のジャケ写', P.jackets, '曲', ''],
+             ['recent', '写真の確認（最近聴いた人）', P.recent, '組', '最近30日に聴いた人を2週間ごとに確認'],
+             ['finish', 'ジャケ写の仕上げ', P.finish, '曲', 'アルバムの画像を借りている曲を1曲ずつ確認'],
+             ['other', '写真の確認（そのほか）', P.other, '組', '半年ごとに確認']].filter(function(x){ return x[0] === 'new' || (x[2] && x[2].total); });
+    var seenNow = false, seenNext = false, acc = 0;
+    h += '<ol class="pg-flow">' + T.map(function(x){
+      var d = x[2], done = !d || d.done >= d.total, cls = done ? 'done' : !seenNow ? 'now' : 'wait', tag = '';
+      if (!done) { if (cls === 'now') { seenNow = true; tag = '<span class="pg-tag">進行中</span>'; } else if (!seenNext) { seenNext = true; tag = '<span class="pg-tag">次</span>'; } }
+      var right = !d ? '毎回' : done ? fmt(d.total) + x[3] : '<b class="pg-c" data-to="' + d.done + '">' + fmt(d.done) + '</b> / ' + fmt(d.total);
+      var li = '<li class="' + cls + '"><span class="pg-node">' + (done ? '' : '<svg viewBox="0 0 22 22" aria-hidden="true"><circle class="trk" cx="11" cy="11" r="9.5"/><circle class="arc" cx="11" cy="11" r="9.5" data-ring="' + (d.done / d.total * 100).toFixed(1) + '"/></svg>') + '</span>'
+        + '<span class="pg-t">' + esc(x[1]) + tag + '</span><span class="pg-v">' + right + '</span>';
+      if (!done) {
+        var p = d.done / d.total * 100, rest = d.total - d.done;
+        acc += rest;
+        li += '<div class="pg-m"><div class="pg-bar"><i data-pw="' + Math.max(p, 0.3).toFixed(1) + '"></i></div><span class="pg-p">' + pctTxt(p, false) + '</span></div>';
+        li += '<div class="pg-sub">' + (cls === 'now' ? 'あと' + eta(rest) + ' ・ ' : '前の作業のあと' + eta(rest) + ' ・ ') + esc(x[4]) + '</div>';
+      }
+      return li + '</li>';
+    }).join('') + '</ol>'
+      + '<p class="pg-foot">上から順に、余った問い合わせ回数を使います。ジャケ写は、その曲を聴いたときに新しい画像へ切り替わります。</p>';
+    $('pgBody').innerHTML = h;
+    $('pgAt').textContent = hm(Q.at) + ' 取得';
+    pgAnimate();
+  }
+  // 画面に入るたびに、棒・輪・数字を0から動かす
+  var pgIO = 'IntersectionObserver' in window ? new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) pgAnimate(); }); }, {threshold: 0.2}) : null;
+  function pgAnimate(){
+    var root = $('pgBody'), calm = matchMedia('(prefers-reduced-motion: reduce)').matches, ease = 'cubic-bezier(.2,.8,.2,1)';
+    if (pgIO && !root._io) { root._io = 1; pgIO.observe($('progressCard')); }
+    root.querySelectorAll('[data-pw]').forEach(function(el, i){ var w = el.dataset.pw + '%'; el.style.width = w; if (!calm && el.animate) el.animate([{width: '0%'}, {width: w}], {duration: 1100, delay: i * 70, easing: ease, fill: 'backwards'}); });
+    root.querySelectorAll('[data-ring]').forEach(function(el, i){ var C = 2 * Math.PI * 9.5, off = C * (1 - Math.max(+el.dataset.ring / 100, 0.015)); el.style.strokeDasharray = C; el.style.strokeDashoffset = off; if (!calm && el.animate) el.animate([{strokeDashoffset: C}, {strokeDashoffset: off}], {duration: 1200, delay: 300 + i * 90, easing: ease, fill: 'backwards'}); });
+    root.querySelectorAll('.pg-c').forEach(function(el){ var to = +el.dataset.to, d = +(el.dataset.dec || 0), f = function(v){ return v.toLocaleString('ja-JP', {minimumFractionDigits: d, maximumFractionDigits: d}); };
+      if (calm || !(to > 0)) { el.textContent = f(to); return; } var t0 = performance.now(); (function s(t){ var k = Math.min(1, (t - t0) / 1100), e = 1 - Math.pow(1 - k, 4); el.textContent = f(to * e); if (k < 1 && el.isConnected) requestAnimationFrame(s); })(t0); });
+  }
   function when(t){
     if (t == null) return '―';
     var d = new Date(t + 9*3600000);
@@ -1833,6 +1948,7 @@ body[data-sk=home] .sk-all{display:block}
     }
   }
   $('notice').innerHTML = notice;
+  renderProgress();
   $('actionsLink').href = ACTIONS;
   var DL = RAW.downloads || {};
   if (DL.rows != null) $('dlCsvNote').textContent = 'これまでの全再生（' + fmt(DL.rows) + '件）。Excelで開けます';
