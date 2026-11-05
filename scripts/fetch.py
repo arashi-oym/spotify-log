@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spotifyの「最近再生した曲」（直近50曲）を取得し、data/plays.csv に新しい分を追記します。
+"""Spotifyの「最近再生した曲」（直近50曲）を取得し、data/plays-（年）.csv に新しい分を追記します。
 あわせて、ジャケ写やアーティスト画像が未取得のものを少しずつ補完します。
 GitHub Actions から1時間ごとに実行されます。
 """
@@ -17,15 +17,9 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "data" / "plays.csv"
-ARTISTS_PATH = ROOT / "data" / "artists.json"
-STATUS_PATH = ROOT / "data" / "status.json"
-DATA = ROOT / "data"                            # Spotifyから取り寄せた過去の履歴は data/history*.csv（いくつあってもOK）
-TRACKS_PATH = ROOT / "data" / "tracks.json"
-EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（画像の取得もしない）    # 過去の履歴の曲の情報（ジャケ写・参加アーティストなど）
+from records import (ARTISTS_PATH, STATUS_PATH, TRACKS_PATH, RecordError, excluded_plays, history_paths,
+                     load_live, read_json, save_live)
 # --- Spotifyへの問い合わせ回数の上限 ---
 # 2026/9/28〜10/15 の記録では、曲情報・アーティスト写真の問い合わせが「24時間で600回」に達すると毎回
 # 429（多すぎ）で止められ、最初の問い合わせから24時間たつまで待たされていた（再生履歴の取得は別枠で、止められない）。
@@ -36,7 +30,6 @@ PER_RUN = 25             # 1時間あたりに使う回数。実行は1時間に
 BACKFILL_PAGES = 3       # 取りこぼしの可能性があるとき、「さらに前の50曲」を取りに行く最大回数（1日の上限とは別枠）
 PACE = 0.5                                      # Spotifyへの問い合わせの間隔（秒）。短すぎると「429 多すぎ」で止められる
 MIN_COOLDOWN = 30 * 60                          # 429で止められたとき、最低これだけ（秒）補完を休む
-FIELDS = ["played_at", "track_id", "track", "artists", "album", "duration_ms", "image", "artist_ids"]
 API = "https://api.spotify.com/v1"
 SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
 
@@ -99,12 +92,7 @@ def token_hash():
 
 
 def load_status():
-    if STATUS_PATH.exists():
-        try:
-            return json.loads(STATUS_PATH.read_text(encoding="utf-8"))
-        except ValueError:
-            pass
-    return {}
+    return read_json(STATUS_PATH)
 
 
 def save_status(st):
@@ -186,42 +174,6 @@ def track_extras(t):
     return image, artist_ids
 
 
-def load_rows():
-    if not CSV_PATH.exists():
-        return []
-    with CSV_PATH.open(newline="", encoding="utf-8-sig") as f:
-        return [{k: (r.get(k) or "") for k in FIELDS} for r in csv.DictReader(f)]
-
-
-def save_rows(rows):
-    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    rows.sort(key=lambda r: r["played_at"])
-    with CSV_PATH.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS)
-        w.writeheader()
-        w.writerows(rows)
-
-
-def excluded_plays():
-    """data/exclude.json に載っている再生（日時と曲IDの組）"""
-    out = set()
-    if EXCLUDE_PATH.exists():
-        try:
-            data = json.loads(EXCLUDE_PATH.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            return out
-        for g in data.get("groups", []):
-            for p in g.get("plays", []):
-                if len(p) >= 2:
-                    out.add((p[0][:19] + "Z", p[1]))
-    return out
-
-
-def history_paths():
-    """取り寄せた過去の履歴のファイル（history.csv、history-20261015.csv など）"""
-    return sorted(p for p in DATA.glob("history*.csv") if p.is_file())
-
-
 def history_records():
     """過去の履歴のすべての行（ファイルをまたいで順に）"""
     for path in history_paths():
@@ -230,12 +182,7 @@ def history_records():
 
 
 def load_tracks_cache():
-    if TRACKS_PATH.exists():
-        try:
-            return json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            pass
-    return {}
+    return read_json(TRACKS_PATH)
 
 
 def song_key(track, artists):
@@ -315,7 +262,7 @@ def enrich_history(token, phases=(1, 2)):
     if not history_paths():
         return 0
     cache = load_tracks_cache()
-    songs, album_img = history_songs(cache, load_rows())
+    songs, album_img = history_songs(cache, load_live())
 
     shared = 0                                      # ①
     for s in songs.values():
@@ -411,10 +358,7 @@ def artist_play_counts(rows, last=None):
                 counts[aid] += 1
                 seen(aid, r["played_at"][:19])
     if history_paths() and TRACKS_PATH.exists():
-        try:
-            tracks = json.loads(TRACKS_PATH.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            tracks = {}
+        tracks = read_json(TRACKS_PATH)
         per_track, track_last = Counter(), {}
         ex = excluded_plays()
         for r in history_records():
@@ -435,12 +379,7 @@ def artist_play_counts(rows, last=None):
 def artists_needed(rows):
     """写真をまだ調べていないアーティスト。いま聴いている曲（自動記録）のアーティストを先に、
     あとはよく聴いた順、同じ回数なら最近聴いた順"""
-    cache = {}
-    if ARTISTS_PATH.exists():
-        try:
-            cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            cache = {}
+    cache = read_json(ARTISTS_PATH)
     last = {}
     counts = artist_play_counts(rows, last)
     live = {aid for r in rows for aid in r["artist_ids"].split(" / ") if SPOTIFY_ID.match(aid)}
@@ -450,12 +389,7 @@ def artists_needed(rows):
 
 def update_artists(token, rows, limit):
     """アーティストの写真を、artists_needed の順に調べて artists.json に保存する"""
-    cache = {}
-    if ARTISTS_PATH.exists():
-        try:
-            cache = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            cache = {}
+    cache = read_json(ARTISTS_PATH)
     if cooling():
         print("アーティスト写真：Spotifyの制限で休憩中のため、今回はお休みします")
         REPORT["artistsLeft"] = len(artists_needed(rows))
@@ -552,10 +486,7 @@ def progress(rows):
     cut30 = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%S")
     d14 = (now - timedelta(days=REFRESH_RECENT_DAYS)).strftime("%Y-%m-%d")
     d182 = (now - timedelta(days=REFRESH_OTHER_DAYS)).strftime("%Y-%m-%d")
-    try:
-        art = json.loads(ARTISTS_PATH.read_text(encoding="utf-8") or "{}") if ARTISTS_PATH.exists() else {}
-    except ValueError:
-        art = {}
+    art = read_json(ARTISTS_PATH)
     last = {}
     counts = artist_play_counts(rows, last)
     ids = [a for a in counts if SPOTIFY_ID.match(a)]
@@ -583,7 +514,10 @@ def sync():
     except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
         raise SyncError("temporary", "Spotifyに接続できませんでした（通信エラー）。", str(e))
 
-    rows = load_rows()
+    try:
+        rows = load_live()
+    except RecordError as e:
+        raise SyncError("unknown", "記録ファイルの中身を確かめられなかったため、今回は何も書き換えずに止めました。", str(e))
     seen = {r["played_at"] for r in rows}
     last_recorded = max(seen) if seen else ""        # 前回までの記録で、いちばん新しい再生
     known = {}  # track_id -> (image, artist_ids)
@@ -681,7 +615,10 @@ def sync():
         looked += 1
         time.sleep(PACE)
 
-    save_rows(rows)
+    try:
+        save_live(rows)
+    except RecordError as e:
+        raise SyncError("unknown", "記録ファイルの保存を確かめられなかったため、今回は保存しませんでした。", str(e))
 
     # 残りの回数の使い方：アーティスト写真を先に、残りを過去の曲のジャケ写に
     # 余った問い合わせ回数の使い道（上から順に。画面の見た目が良くなる順）

@@ -1,79 +1,55 @@
 #!/usr/bin/env python3
-"""data/ の記録から、専用ページ docs/index.html を作ります。
-ページのデザインは scripts/template.html にあり、ここではデータを埋め込むだけです。
+"""data/ の記録から、専用ページ（docs/）を作ります。
+ページのデザインは scripts/template.html にあり、ここではデータを入れるだけです。
 （集計はページを開いたときにブラウザ側で行います）
+
+再生の記録は「年ごとのファイル」（docs/d/2026-…json など）に分けて置きます。
+ファイル名には中身から作った「指紋」（SHA-256）が入っていて、ページは読み込んだファイルの指紋と件数を
+確かめてから表示します。作り終えたら、書き出したファイルを読み直して元のデータと1件も違わないことを確かめ、
+違いがあればページを公開しません（前のページがそのまま残ります）。
 """
 import csv
+import hashlib
 import html
 import json
 import os
 import re
+import shutil
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from records import ARTISTS_PATH, JST, STATUS_PATH, TRACKS_PATH, excluded_plays, history_paths, load_live, read_json
+
 ROOT = Path(__file__).resolve().parent.parent
-JST = timezone(timedelta(hours=9))
-CSV_PATH = ROOT / "data" / "plays.csv"
-ARTISTS_PATH = ROOT / "data" / "artists.json"
-STATUS_PATH = ROOT / "data" / "status.json"
-DATA = ROOT / "data"                               # 取り寄せた過去の履歴は data/history*.csv（いくつあってもOK）
-TRACKS_PATH = ROOT / "data" / "tracks.json"
-EXCLUDE_PATH = ROOT / "data" / "exclude.json"   # 集計から外す再生（身に覚えのない再生など）
 TEMPLATE = Path(__file__).resolve().parent / "template.html"
-# 以前のデザイン（v25）の控え。GitHubの「Variables」で PAGE_DESIGN を classic にすると、こちらでページを作る
-CLASSIC_TEMPLATE = Path(__file__).resolve().parent / "template-v25.html"
-
-
-def page_template():
-    """使うデザインを選ぶ（ふだんは新デザイン。PAGE_DESIGN=classic のときだけ以前のデザイン）"""
-    want = os.environ.get("PAGE_DESIGN", "").strip().lower()
-    if want in ("classic", "old", "v25") and CLASSIC_TEMPLATE.exists():
-        print("ページのデザイン：以前のデザイン（v25）")
-        return CLASSIC_TEMPLATE
-    return TEMPLATE
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
 DOWNLOADS = DOCS / "downloads"
+PARTS = DOCS / "d"                                  # 年ごとのデータファイルの置き場所
 WORKFLOW = ROOT / ".github" / "workflows" / "spotify.yml"
-
-
-
-def read_json(path):
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8") or "{}")
-        except ValueError:
-            pass
-    return {}
-
-
 SPOTIFY_ID = re.compile(r"^[0-9A-Za-z]{22}$")
 
 
+def to_row(r, source):
+    """記録の1行 → 集計用の形（日時が読めない行は None）"""
+    try:
+        dt = datetime.strptime(r["played_at"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {
+        "dt": dt, "track_id": r.get("track_id") or r.get("track") or "",
+        "track": r.get("track") or "", "artists": r.get("artists") or "",
+        "album": r.get("album") or "",
+        "image": r.get("image") or "", "artist_ids": r.get("artist_ids") or "",
+        "ms": int(float(r.get("duration_ms") or 0)), "src": source,
+        "has_id": bool(SPOTIFY_ID.match(r.get("track_id") or "")),   # 曲の番号つき（拡張ストリーミング履歴・自動記録）
+    }
+
+
 def read_csv(path, source):
-    rows = []
-    if not path.exists():
-        return rows
     with path.open(newline="", encoding="utf-8-sig") as f:
-        for r in csv.DictReader(f):
-            try:
-                dt = datetime.strptime(r["played_at"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-            except (KeyError, ValueError):
-                continue
-            rows.append({
-                "dt": dt, "track_id": r.get("track_id") or r.get("track") or "",
-                "track": r.get("track") or "", "artists": r.get("artists") or "",
-                "album": r.get("album") or "",
-                "image": r.get("image") or "", "artist_ids": r.get("artist_ids") or "",
-                "ms": int(float(r.get("duration_ms") or 0)), "src": source,
-                "has_id": bool(SPOTIFY_ID.match(r.get("track_id") or "")),   # 曲の番号つき（拡張ストリーミング履歴・自動記録）
-            })
-    return rows
-
-
-def history_paths():
-    return sorted(p for p in DATA.glob("history*.csv") if p.is_file())
+        return [x for x in (to_row(r, source) for r in csv.DictReader(f)) if x]
 
 
 def norm(text):
@@ -157,9 +133,9 @@ def fetch_reminder(st):
 
 
 def load_rows():
-    """いまの記録（plays.csv）と、取り寄せた過去の履歴（history*.csv）を合わせる。
+    """いまの記録（plays-（年）.csv）と、取り寄せた過去の履歴（history*.csv）を合わせる。
     同じ再生を二重に数えないよう、merge_history で重なりを取り除く。"""
-    live = read_csv(CSV_PATH, "live")
+    live = [x for x in (to_row(r, "live") for r in load_live()) if x]
     hist, spans = [], []
     for path in history_paths():
         rows = read_csv(path, "history")
@@ -185,16 +161,6 @@ def load_rows():
         print(f"除外リストにより {before - len(rows):,}件の再生を集計から外しました")
     rows.sort(key=lambda x: x["dt"])
     return rows
-
-
-def excluded_plays():
-    """data/exclude.json に載っている再生（日時と曲IDの組）を返す"""
-    data, out = read_json(EXCLUDE_PATH), set()
-    for g in data.get("groups", []):
-        for p in g.get("plays", []):
-            if len(p) >= 2:
-                out.add((p[0][:19] + "Z", p[1]))
-    return out
 
 
 def artist_images(rows):
@@ -406,8 +372,8 @@ def add_file(z, arcname, data, executable=False):
 
 
 SCRIPTS = Path(__file__).resolve().parent
-VERSION = "v27"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
-KIT_FILES = ["fetch.py", "build_report.py", "auth.py", "import_history.py", "template.html", "template-v25.html",
+VERSION = "v28"   # プログラムを更新したら数字を上げる（更新用ファイルの名前に使う）
+KIT_FILES = ["fetch.py", "build_report.py", "records.py", "auth.py", "import_history.py", "template.html",
              "setup.html", "import.html", "page-common.css"]
 
 
@@ -446,11 +412,13 @@ def build_downloads(rows, repo):
     for old in DOWNLOADS.glob("*.zip"):
         old.unlink()                        # 古いバージョンのzipを残さない
 
-    # 更新用ファイル：自分のリポジトリを最新版にするとき、そのままアップロードする分（README.md と scripts/）
+    # 更新用ファイル：自分のリポジトリを最新版にするとき、そのままアップロードする分（README.md・scripts/・動かす設定）
     name = update_zip_name(repo)
     with zipfile.ZipFile(DOWNLOADS / name, "w") as z:
         top = name[:-4]
         add_file(z, f"{top}/README.md", README.read_bytes())
+        if WORKFLOW.exists():
+            add_file(z, f"{top}/workflow/spotify.yml", WORKFLOW.read_bytes())   # 見えるフォルダに入れる（.github は端末によって隠れて見えないため）
         for f in KIT_FILES:
             if (SCRIPTS / f).exists():
                 add_file(z, f"{top}/scripts/{f}", (SCRIPTS / f).read_bytes())
@@ -482,10 +450,73 @@ def write_tool_pages(repo):
             (DOCS / name).write_text(page, encoding="utf-8")
 
 
+def split_data(data, song_year, play_year):
+    """songs・p・artistImages を、年ごとのファイルとアーティスト写真のファイルに分ける。
+    曲は初めて聴いた順に並んでいるので、年ごとに切り分けて順につなげれば元とまったく同じになる"""
+    parts = {}
+    for n, y in enumerate(song_year):
+        parts.setdefault(y, {"songs": [], "p": []})["songs"].append(data["songs"][n])
+    for n, y in enumerate(play_year):
+        parts.setdefault(y, {"songs": [], "p": []})["p"] += data["p"][2 * n:2 * n + 2]
+    files = [(str(y), parts[y]) for y in sorted(parts)]
+    files.append(("artists", data["artistImages"]))
+    return files
+
+
+def fingerprint(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def write_parts(files):
+    """データファイルを書き出し、ページが確かめるための一覧（名前・指紋・件数）を返す"""
+    shutil.rmtree(PARTS, ignore_errors=True)       # 前回のファイルを残さない
+    PARTS.mkdir(parents=True)
+    listing = []
+    for name, obj in files:
+        raw = json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        h = fingerprint(raw)
+        path = f"d/{name}-{h[:16]}.json"             # 中身が変われば名前も変わる（古いページと新しいデータが混ざらない）
+        (DOCS / path).write_bytes(raw)
+        entry = {"f": path, "sha256": h, "bytes": len(raw)}
+        if name == "artists":
+            entry["artists"] = len(obj)
+        else:
+            entry.update(songs=len(obj["songs"]), plays=len(obj["p"]) // 2)
+        listing.append(entry)
+    return listing
+
+
+def verify_output(data, rest):
+    """書き出したページとデータファイルを読み直し、元のデータと1件も違わないことを確かめる"""
+    page = (DOCS / "index.html").read_text(encoding="utf-8")
+    m = re.search(r'<script type="application/json" id="data">(.*?)</script>', page, re.S)
+    if not m or "__DATA__" in page:
+        raise SystemExit("確認エラー：ページにデータが入っていません")
+    shell = json.loads(m.group(1))
+    if shell != rest:
+        raise SystemExit("確認エラー：ページに入れた情報が元と違います")
+    songs, plays, artists = [], [], None
+    for e in shell["files"]:
+        raw = (DOCS / e["f"]).read_bytes()
+        if fingerprint(raw) != e["sha256"] or len(raw) != e["bytes"]:
+            raise SystemExit(f"確認エラー：{e['f']} の指紋が合いません")
+        obj = json.loads(raw)
+        if "artists" in e:
+            artists = obj
+        else:
+            songs += obj["songs"]
+            plays += obj["p"]
+    if songs != data["songs"] or plays != data["p"] or artists != data["artistImages"]:
+        raise SystemExit("確認エラー：データファイルをつなげた結果が元のデータと違います")
+    print(f"確認OK：データファイル {len(shell['files'])}個を読み直し、元のデータと一致しました")
+
+
 def main():
     rows = load_rows()
     songs, index, plays, prev = [], {}, [], 0
+    song_year, play_year = [], []
     for r in rows:
+        y = r["dt"].astimezone(JST).year
         # 同じ曲がシングルとアルバムなどで別の番号になっていることがあるので、
         # 「曲名＋メインのアーティスト」が同じなら同じ曲としてまとめる
         k = (r["track"].strip().lower(), r["artists"].split(" / ")[0].strip().lower()) if r["track"] else r["track_id"]
@@ -493,6 +524,7 @@ def main():
         if k not in index:
             index[k] = len(songs)
             songs.append([r["track"], r["artists"], short_img(r["image"]), round(r["ms"] / 60000, 2)])
+            song_year.append(y)
         else:
             sg = songs[index[k]]
             if r["src"] == "live":
@@ -502,6 +534,7 @@ def main():
                 sg[2] = short_img(r["image"])
         t = int(r["dt"].timestamp())
         plays += [t - prev, index[k]]     # 容量を減らすため、前の再生からの秒数で保存
+        play_year.append(y)
         prev = t
 
     st = read_json(STATUS_PATH)
@@ -535,14 +568,17 @@ def main():
         "downloads": {"zip": "downloads/listening-log-kit.zip", "update": "downloads/" + update_zip_name(repo),
                       "version": VERSION, "csv": "downloads/plays.csv", "rows": len(rows)},
     }
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     DOCS.mkdir(exist_ok=True)
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")
-    html = page_template().read_text(encoding="utf-8").replace("__DATA__", payload, 1)
-    (DOCS / "index.html").write_text(html, encoding="utf-8")
+    rest = {k: v for k, v in data.items() if k not in ("songs", "p", "artistImages")}
+    rest["files"] = write_parts(split_data(data, song_year, play_year))
+    payload = json.dumps(rest, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    page = TEMPLATE.read_text(encoding="utf-8").replace("__DATA__", payload, 1)
+    (DOCS / "index.html").write_text(page, encoding="utf-8")
+    verify_output(data, rest)
     write_tool_pages(repo)
     build_downloads(rows, repo)
-    print(f"docs/index.html を更新しました（再生 {len(rows):,}件 / 曲 {len(songs):,}曲）")
+    print(f"docs/ を更新しました（再生 {len(rows):,}件 / 曲 {len(songs):,}曲）")
 
 
 if __name__ == "__main__":
