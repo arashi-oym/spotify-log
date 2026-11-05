@@ -4,8 +4,8 @@
  "state": "ok",
  "code": "",
  "message": "",
- "at": "2026-11-05T21:30:38+00:00",
- "lastSuccess": "2026-11-05T21:30:38+00:00",
+ "at": "2026-11-05T21:58:57+00:00",
+ "lastSuccess": "2026-11-05T21:58:57+00:00",
  "usage": [
   [
    "2026-11-04T22:00:42+00:00",
@@ -202,34 +202,38 @@
   [
    "2026-11-05T21:30:38+00:00",
    12
+  ],
+  [
+   "2026-11-05T21:58:57+00:00",
+   12
   ]
  ],
  "lastRun": {
   "gap": null,
   "artistsLeft": 0,
-  "jackets": 15,
+  "jackets": 20,
   "jacketsLeft": 0,
-  "finishLeft": 1026,
+  "finishLeft": 1010,
   "artistsChecked": 0,
   "artistsChanged": 0,
   "added": 0,
   "looked": 0,
   "artists": 1,
-  "at": "2026-11-05T21:30:38+00:00",
+  "at": "2026-11-05T21:58:57+00:00",
   "requests": 12,
-  "used24": 575,
+  "used24": 587,
   "budget": 590,
   "coolingUntil": ""
  },
  "lastTrigger": {
-  "source": "cron-job",
-  "at": "2026-11-05T21:30:38+00:00"
+  "source": "schedule",
+  "at": "2026-11-05T21:58:57+00:00"
  },
  "lastExternal": "2026-11-05T21:30:38+00:00",
  "progress": {
   "artists": {
-   "total": 7029,
-   "done": 7028,
+   "total": 7031,
+   "done": 7029,
    "noImage": 182
   },
   "recent": {
@@ -237,16 +241,16 @@
    "done": 471
   },
   "other": {
-   "total": 6557,
-   "done": 279
+   "total": 6558,
+   "done": 280
   },
   "jackets": {
    "total": 15046,
    "done": 15046
   },
   "finish": {
-   "total": 15410,
-   "done": 14384
+   "total": 15412,
+   "done": 14402
   }
  }
 }
