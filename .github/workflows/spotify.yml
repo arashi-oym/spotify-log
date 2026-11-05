@@ -23,6 +23,8 @@ jobs:
   record:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      built: ${{ steps.build.outputs.ok }}   # ページを作れて、確認にも通ったか（yes のときだけ公開する）
     steps:
       - uses: actions/checkout@v5
 
@@ -37,18 +39,24 @@ jobs:
           TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'schedule' || inputs.source || 'manual' }}
         run: python3 scripts/fetch.py
 
+      # ページを作り、書き出したファイルを読み直して元のデータと同じか確かめる（違えば失敗にして、公開しない）
       - name: ページを作成
+        id: build
+        continue-on-error: true
         env:
           TRIGGER_TOKEN_EXPIRES: ${{ vars.TRIGGER_TOKEN_EXPIRES }}   # 外部呼び出し用の鍵の有効期限（GitHubの「Variables」に日付を入れておく）
-          PAGE_DESIGN: ${{ vars.PAGE_DESIGN }}   # classic にすると以前のデザイン（v25）でページを作る。空なら新しいデザイン
-        run: python3 scripts/build_report.py
+        run: |
+          python3 scripts/build_report.py
+          echo "ok=yes" >> "$GITHUB_OUTPUT"
 
-      # 記録として保存するのは data フォルダだけ（専用ページ本体は保存せず、次の手順でその都度お届けします）
+      # 記録として保存するのは data フォルダだけ（専用ページは毎回作り直すので保存しない）
+      # ページ作成が失敗しても、取得した再生の記録は必ず保存する
       - name: 保存（コミット）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A data
+          git rm -r -q --cached --ignore-unmatch docs scripts/__pycache__   # 自動で作られるものは倉庫にしまわない
           if git diff --cached --quiet; then
             echo "変更なし"
           else
@@ -58,20 +66,27 @@ jobs:
           fi
 
       - name: 専用ページを準備
+        if: steps.build.outputs.ok == 'yes'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
       # 手当てが必要なエラーのときは、ここで失敗させて通知メールを送る
       - name: エラーのお知らせ
-        if: steps.fetch.outcome == 'failure'
+        if: steps.fetch.outcome == 'failure' || steps.build.outcome == 'failure'
         run: |
-          echo "::error title=Spotifyとの連携に問題があります::専用ページ上部の案内、またはREADMEの「止まったときの直し方」を確認してください。"
+          if [ "${{ steps.build.outcome }}" = "failure" ]; then
+            echo "::error title=ページを作れませんでした::確認に通らなかったため、前のページをそのまま表示しています（記録は保存済み）。READMEの「止まったときの直し方」を確認してください。"
+          fi
+          if [ "${{ steps.fetch.outcome }}" = "failure" ]; then
+            echo "::error title=Spotifyとの連携に問題があります::専用ページ上部の案内、またはREADMEの「止まったときの直し方」を確認してください。"
+          fi
           exit 1
 
   deploy:
     needs: record
-    if: ${{ !cancelled() }}   # record がエラー通知で失敗扱いになっても、作成済みのページ（エラー表示つき）は公開する
+    # record がエラー通知で失敗扱いになっても、作れたページ（エラー表示つき）は公開する。作れなかったときは公開しない
+    if: ${{ !cancelled() && needs.record.outputs.built == 'yes' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment:
