@@ -1,10 +1,10 @@
 {
  "tokenHash": "030736b8b0",
  "tokenSince": "2026-09-28",
- "state": "ok",
- "code": "",
- "message": "",
- "at": "2026-11-13T11:30:39+00:00",
+ "state": "temporary",
+ "code": "temporary",
+ "message": "Spotifyが一時的に応答していません（503）。",
+ "at": "2026-11-13T12:00:42+00:00",
  "lastSuccess": "2026-11-13T11:30:39+00:00",
  "usage": [
   [
