@@ -3378,7 +3378,7 @@ function mllSkin(){
   function labelOf(b){ var lf = b.querySelector('.lf'); return (lf || b).textContent.trim(); }
   function syncLabel(){
     var on = periodButtons().filter(function(b){ return b.classList.contains('on'); })[0];
-    $('skDDLabel').textContent = on ? labelOf(on) : '期間を選ぶ';
+    var lb = on ? labelOf(on) : '期間を選ぶ'; if ($('skDDLabel').textContent !== lb) $('skDDLabel').textContent = lb;
     caption();
   }
   function drawMenu(){
@@ -3448,7 +3448,7 @@ function mllSkin(){
   /* ---------- お知らせの印（記録タブの点・ヘッダーの札） ---------- */
   function badges(){
     var bad = !!notice.querySelector('.alert.err'), warn = !bad && (!!notice.querySelector('.alert.warn') || !$('fetchPill').hidden);
-    document.querySelectorAll('.sk-badge').forEach(function(s){ s.className = 'sk-badge' + (bad ? ' bad' : warn ? ' warn' : ''); });
+    document.querySelectorAll('.sk-badge').forEach(function(s){ var c = 'sk-badge' + (bad ? ' bad' : warn ? ' warn' : ''); if (s.className !== c) s.className = c; });
     $('fetchPill').classList.toggle('sk-bad', bad);
   }
   new MutationObserver(badges).observe(notice, {childList: true, subtree: true});
@@ -3466,7 +3466,7 @@ function mllSkin(){
       h += '<span>' + (days > 1 ? md(R.from) + '〜' + md(to - 1) + '・' : md(R.from) + '・') + days + '日間</span>';
     }
     if (plays) h += '<span class="sep">｜</span><span>' + plays + '回</span>';
-    $('skCapText').innerHTML = h;
+    if (caption._h !== h) { caption._h = h; $('skCapText').innerHTML = h; }
   }
   // スマホ：期間のプルダウンを期間の1行の先頭へ移し、ヘッダーにはページ名を出す
   var mqN = matchMedia('(max-width: 599px)');
@@ -4394,7 +4394,7 @@ function goneSection(R){
   var G = goneData(R), mode = G.P ? state.gone : 'old', L = mode === 'old' ? G.old : G.prev, lim = state.goneLimit;
   var sub = mode === 'old' ? '全期間で20回以上聴いて、半年以上聴いていない <b class="num">' + fmt(L.length) + '</b>組'
     : '<span class="nw">' + esc(G.lab) + 'に' + G.need + '回以上聴いて、</span><span class="nw">' + G.now + (G.still ? 'まだ聴いていない' : 'は聴かなかった') + ' <b class="num">' + fmt(L.length) + '</b>組</span>';
-  return gh('ご無沙汰のアーティスト', '<button type="button" class="info press" data-tip="gone" aria-expanded="false" aria-label="説明を表示">' + INFO + '</button>')
+  return gh('ご無沙汰のアーティスト', '<button type="button" class="info press" data-tip="gone" aria-expanded="false" aria-label="説明を表示" style="margin-left:auto">' + INFO + '</button>')
     + (G.P ? '<div class="seg w" role="radiogroup" aria-label="ご無沙汰の種類" id="goneSeg"><span class="seg-p"></span><button type="button" data-gone="prev" class="' + (mode === 'prev' ? 'on' : '') + '">前の期間から</button><button type="button" data-gone="old" class="' + (mode === 'old' ? 'on' : '') + '">しばらくご無沙汰</button></div>' : '')
     + '<p class="note g-sub">' + sub + '</p>'
     + '<section class="card flush" style="margin-top:8px">' + (L.length ? L.slice(0, lim).map(function(x){ return goneRow(x, mode === 'old' ? '' : G.rowLab); }).join('') : '<p class="empty">' + (mode === 'old' ? '半年以上ご無沙汰のアーティストはいません' : 'ご無沙汰のアーティストはいません。前の期間によく聴いた人は、全員また聴いています') + '</p>')
@@ -4496,7 +4496,7 @@ function closeTip(){ if (!tipBtn) return; tipBtn.setAttribute('aria-expanded', '
 function openTip(b){
   if (tipBtn === b) { closeTip(); return; } closeTip();
   var t = document.createElement('div'); t.className = 'tip'; t.id = 'tipBox'; t.setAttribute('role', 'note'); t.innerHTML = (TIPS[b.dataset.tip] || []).map(function(x){ return '<p>' + x + '</p>'; }).join('');
-  var host = b.dataset.tipafter ? $(b.dataset.tipafter) : null; if (host) host.appendChild(t); else b.closest('.ch').insertAdjacentElement('afterend', t);
+  var host = b.dataset.tipafter ? $(b.dataset.tipafter) : null; if (host) host.appendChild(t); else (b.closest('.ch') || b.closest('.gh') || b.parentNode).insertAdjacentElement('afterend', t);
   t.style.setProperty('--ax', (b.getBoundingClientRect().left + 20 - t.getBoundingClientRect().left) + 'px');
   b.setAttribute('aria-expanded', 'true'); b.setAttribute('aria-label', '説明を隠す'); tipBtn = b;
 }
