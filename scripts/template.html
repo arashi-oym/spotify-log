@@ -2371,7 +2371,7 @@ function mllApp(RAW){
       + '<div class="dstat"><div class="k">再生回数</div><div class="v">'+fmt(inR.length)+'<small>回</small></div><div class="sub">'+esc(rangeLabel)+'</div></div>'
       + '<div class="dstat"><div class="k">再生時間</div><div class="v">'+fmt(minutes)+'<small>分</small></div><div class="sub">'+(minutes >= 60 ? '約'+hm(minutes) : '目安')+'</div></div>'
       + '<div class="dstat"><div class="k">初めて聴いた日</div><div class="v small">'+stamp(firstT).slice(0,10).replace(/-/g,'/')+'</div></div>'
-      + '<div class="dstat"><div class="k">最後に聴いた日</div><div class="v small">'+stamp(lastT).slice(0,10).replace(/-/g,'/')+'</div><div class="sub">'+(function(){ var d = new Date(lastT + 9*3600000); return d.getUTCHours() + ':' + ('0' + d.getUTCMinutes()).slice(-2); })()+'</div></div>'
+      + '<div class="dstat"><div class="k">最後に聴いた日</div><div class="v small">'+stamp(lastT).slice(0,10).replace(/-/g,'/')+'</div><div class="sub">'+(function(){ var d = new Date(lastT + 9*3600000); var g = Math.floor((Date.now() + 9*3600000) / 864e5) - Math.floor((lastT + 9*3600000) / 864e5); return d.getUTCHours() + ':' + ('0' + d.getUTCMinutes()).slice(-2) + (g >= 1 ? ' ・ ' + g + '日ぶり' : ''); })()+'</div></div>'
       + '<div class="dstat"><div class="k">全期間の再生</div><div class="v">'+fmt(all.length)+'<small>回</small></div><div class="sub">記録が残っている全部</div></div>'
       + (isSong && SONGS[cur.idx] ? '<div class="dstat"><div class="k">曲の長さ</div><div class="v">'+Math.floor(SONGS[cur.idx].min)+'<small>分</small>'+('0'+Math.round(SONGS[cur.idx].min%1*60)).slice(-2)+'<small>秒</small></div></div>'
          : '<div class="dstat"><div class="k">聴いた曲の数</div><div class="v">'+fmt((function(){ var o = {}, n = 0; all.forEach(function(p){ if (!o[p[1]]) { o[p[1]] = 1; n++; } }); return n; })())+'<small>曲</small></div><div class="sub">全期間</div></div>')
@@ -4061,6 +4061,12 @@ a.row{color:inherit;text-decoration:none}
 /* 「いちばん聴いた時間帯」を押したとき、ヒートマップのカードを一瞬だけ光らせて場所を知らせる */
 @keyframes flash{0%{box-shadow:0 0 0 0 var(--th)}30%{box-shadow:0 0 0 3px var(--th)}100%{box-shadow:0 0 0 0 transparent}}
 .card.flash{animation:flash 1.2s var(--m-ease) .3s}
+/* ご無沙汰のアーティスト：右に「◯日ぶり」と最後に聴いた日 */
+.g-sub{margin:8px 4px 0}
+.row.gone .g-ago{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:12px;color:var(--th);font-weight:700;white-space:nowrap;margin-left:8px}
+.row.gone .g-ago .g-d{white-space:nowrap}.row.gone .g-ago b{font-size:15.5px;margin-right:1px}
+.row.gone .g-ago small{font-size:11.5px;font-weight:500;color:var(--t2)}
+.row.gone .r-s{white-space:normal;overflow:visible;text-overflow:clip}
 </style><header class="bar" id="bar"><div class="bar-in">
   <div class="bar-t" aria-hidden="true"><span id="barT">My Listening Log</span><small class="num" id="barS"></small></div>
   <button type="button" class="ib press" id="searchBtn" aria-label="曲・アーティストを検索"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
@@ -4156,7 +4162,7 @@ function prevRange(R){
 }
 
 /* ---------- 部品 ---------- */
-var ST = {}, state = {view: 'home', preset: '7d', custom: null, rank: 'songs', limit: 50, mon: 12, disc: 'songs', discLimit: 10};
+var ST = {}, state = {view: 'home', preset: '7d', custom: null, rank: 'songs', limit: 50, mon: 12, disc: 'songs', discLimit: 10, gone: 'prev', goneLimit: 10};
 var SONG_FIRST = {}, ARTIST_FIRST = {}, ARTIST_SONGS = {}, ARTIST_LIST = [], SONG_ALL = [], ARTIST_COUNT = {}, ARTIST_MIN = {}, CH = {}, MON = null;
 var IC = {
   home: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>', rank: '<path d="M5 20V11M12 20V5M19 20v-6"/>',
@@ -4173,6 +4179,7 @@ function dot(n, c, lg){ return '<span class="dot' + (lg ? ' lg' : '') + '" style
 var VIEWS = [['home', 'ホーム', 'green'], ['rank', 'ランキング', 'orange'], ['ana', '分析', 'blue'], ['log', '記録', 'purple']];
 var INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.500"/><path d="M12 7.600v.100"/></svg>';
 var TIPS = {
+  gone: ['<b>前の期間から</b>：前の期間によく聴いていたのに、今の期間にまだ聴いていないアーティストです。月・7日間・30日間などは前の期間に5回以上、年は10回以上聴いた人だけを出します。', '<b>しばらくご無沙汰</b>：全期間で20回以上聴いたのに、半年以上聴いていないアーティストです（上の期間には関係なく出ます）。', '並びは、よく聴いていた順です。押すと、そのアーティストの詳細が開きます。'],
   chart: ['棒を押すと、その日（月・年）の再生回数が上に出ます。', '点線は1本あたりの平均です。'],
   cmp: ['今の期間と、その前の期間の再生回数を比べます。今月・今年のように途中の期間は、前の期間も同じ日数までで比べます。'],
   rec: ['<b>連続記録</b>は、1日に1回以上聴いた日が続いた日数です（日本時間の0時区切り）。', '<b>連続再生</b>は、30分以上あけずに聴き続けた時間です。'],
@@ -4285,6 +4292,10 @@ function viewHome(R, A){
     + '<button type="button" class="tile press" data-goto="ana"><span class="tile-k">' + dot('fire', 'pink') + '連続記録</span><span class="tile-v">' + u(st.n, '日') + '</span><span class="week" aria-hidden="true">' + wk + '</span></button></div>' + tendency(A, R);
   s += '</div><div class="stack">' + gh('トップソング', '<button type="button" class="more" data-goto="rank" data-mode="songs">すべて表示</button>') + feat('song', A.songs[0]) + (A.songs.length > 1 ? '<section class="card flush" style="margin-top:10px">' + A.songs.slice(1, 6).map(function(x){ return songRow(x, true); }).join('') + '</section>' : '');
   s += '</div><div class="stack">' + gh('トップアーティスト', '<button type="button" class="more" data-goto="rank" data-mode="artists">すべて表示</button>') + feat('artist', A.artists[0]) + (A.artists.length > 1 ? '<section class="card flush" style="margin-top:10px">' + A.artists.slice(1, 6).map(function(x){ return artistRow(x, true); }).join('') + '</section>' : '');
+  var go = goneData({kind: 'all'}).old.slice(0, 12);
+  if (go.length) { var pk = go[dayIndex(NOW) % go.length], dd = dayIndex(NOW) - dayIndex(pk.last);
+    s += '</div><div class="stack">' + gh('久しぶりにどう？', '<button type="button" class="more" data-goto="ana" data-gone="old">ご無沙汰を見る</button>')
+      + '<section class="card flush"><button type="button" class="row nr gone" data-artist="' + esc(pk.n) + '">' + av(pk.n, pk.img, true) + '<span class="r-m"><span class="r-t">' + esc(pk.n) + '</span><span class="r-s" style="font-family:var(--f-ui)"><span class="nw">全期間 ' + fmt(pk.tot) + '回</span>　<span class="nw">最後は ' + ymd(pk.last) + '</span></span></span><span class="g-ago"><span class="g-d"><b class="num">' + fmt(dd) + '</b>日ぶり</span></span><span class="chev" aria-hidden="true"></span></button></section>'; }
   return s + '</div></div>';
 }
 function habitType(A, R){
@@ -4305,7 +4316,7 @@ function tendency(A, R){
   return gh('聴き方のくせ') + '<section class="card">' + ch(lab, 'tend') + '<div class="tend" aria-hidden="true"><div class="tend-t"><i style="left:' + (2 + rep * 96).toFixed(1) + '%"></i></div><div class="tend-x"><span>いろいろ聴く</span><span>同じ曲を聴き込む</span></div></div>'
     + habitType(A, R) + '<p class="dev"><span class="nw">1曲あたり平均 <b class="num">' + (Math.round(avg * 10) / 10) + '</b>回</span><span class="nw">（<span class="num">' + fmt(A.songs.length) + '</span>曲を<span class="num">' + fmt(A.total) + '</span>回再生）</span><br><span class="nw">リピート度 <b class="num">' + Math.round(rep * 100) + '%</b></span></p></section>';
 }
-var SONG_TOT = {}, ARTIST_TOT = {}, ARTIST_MIN = {}, ARTIST_PIC = {};
+var SONG_TOT = {}, ARTIST_TOT = {}, ARTIST_MIN = {}, ARTIST_PIC = {}, ARTIST_LAST = {};
 function viewAna(R, A){
   if (!A.total) return '<div class="card"><p class="empty">この期間の再生はありません。</p></div>';
   var a = A.a, b = A.b, i, byDay = {}, byH = new Array(24).fill(0), byW = new Array(7).fill(0), heat = [], st = curStreak();
@@ -4350,7 +4361,44 @@ function viewAna(R, A){
     + '<div class="seg w" role="radiogroup" aria-label="出会いの種類" id="discSeg" style="margin-top:10px"><span class="seg-p"></span><button type="button" data-disc="songs" class="' + (isS ? 'on' : '') + '">曲</button><button type="button" data-disc="artists" class="' + (!isS ? 'on' : '') + '">アーティスト</button></div>'
     + '<section class="card flush" style="margin-top:10px">' + (L.length ? L.slice(0, state.discLimit).map(function(x){ return isS ? songRow(x, true, dmax, '出会い：' + ymd(x.first)) : artistRow(x, true, dmax, '出会い：' + ymd(x.first)); }).join('') : '<p class="empty">この期間に初めて聴いた' + (isS ? '曲' : 'アーティスト') + 'はありません</p>')
     + (L.length > state.discLimit ? '<button type="button" class="wide-btn press" id="moreDisc">さらに表示（残り' + fmt(L.length - state.discLimit) + (isS ? '曲' : '組') + '）</button>' : '') + '</section>' + (L.length ? '<p class="note" style="margin:8px 4px 0">回数は、出会ってから今までに聴いた合計です。</p>' : '');
+  s += '</div><div class="stack">' + goneSection(R);
   return s + '</div><slot name="ana"></slot></div>';
+}
+/* ---------- ご無沙汰のアーティスト ---------- */
+function goneData(R){
+  var P = null, lab = '', rowLab = '', need = 5, yearly = false;
+  if (R.kind === 'month') { P = R.m === 1 ? monthRange(R.y - 1, 12) : monthRange(R.y, R.m - 1); lab = P.m + '月'; }
+  else if (R.kind === 'year') { P = yearRange(R.y - 1); lab = P.y + '年'; need = 10; yearly = true; }
+  else if (R.kind !== 'all') { var len = R.to - R.from; P = {from: R.from - len, to: R.from}; lab = R.kind === 'short' ? 'その前の' + R.short : 'その前の同じ日数'; rowLab = R.kind === 'short' ? '前の' + R.short : '前の期間'; if (len >= 300 * DAY) { need = 10; yearly = true; } }
+  if (!rowLab) rowLab = lab;
+  var prev = [];
+  if (P) {
+    var cur = {}; aggregate(R.from, R.to).artists.forEach(function(x){ cur[x.n] = 1; });
+    prev = aggregate(P.from, P.to).artists.filter(function(x){ return x.c >= need && !cur[x.n]; })
+      .map(function(x){ return {n: x.n, img: x.img || ARTIST_PIC[x.n] || '', c: x.c, tot: ARTIST_TOT[x.n] || x.c, last: ARTIST_LAST[x.n]}; });
+    prev.sort(function(a, b){ return b.c - a.c || b.last - a.last; });
+  }
+  var old = Object.keys(ARTIST_TOT).filter(function(n){ return ARTIST_TOT[n] >= 20 && NOW - ARTIST_LAST[n] >= 183 * DAY; })
+    .map(function(n){ return {n: n, img: ARTIST_PIC[n] || '', c: ARTIST_TOT[n], tot: ARTIST_TOT[n], last: ARTIST_LAST[n]}; });
+  old.sort(function(a, b){ return b.c - a.c || b.last - a.last; });
+  var now = R.kind === 'month' ? (R.y === nowJ.y && R.m === nowJ.m ? '今月' : R.m + '月') : R.kind === 'year' ? (R.y === nowJ.y ? '今年' : R.y + '年') : R.kind === 'short' ? 'この' + R.short : 'この期間';
+  return {P: P, lab: lab, rowLab: rowLab, need: need, prev: prev, old: old, still: R.to > NOW, now: now};
+}
+function goneRow(x, lab){
+  var d = Math.max(1, dayIndex(NOW) - dayIndex(x.last)), q = jst(x.last), dt = (q.y !== nowJ.y ? q.y + '/' : '') + q.m + '/' + q.d;
+  return '<button type="button" class="row nr gone" data-artist="' + esc(x.n) + '">' + av(x.n, x.img, true)
+    + '<span class="r-m"><span class="r-t">' + esc(x.n) + '</span><span class="r-s" style="font-family:var(--f-ui)">' + (lab ? '<span class="nw">' + esc(lab) + ' ' + fmt(x.c) + '回</span>　' : '') + '<span class="nw">全期間 ' + fmt(x.tot) + '回</span></span></span>'
+    + '<span class="g-ago"><span class="g-d"><b class="num">' + fmt(d) + '</b>日ぶり</span><small class="num">' + dt + '</small></span><span class="chev" aria-hidden="true"></span></button>';
+}
+function goneSection(R){
+  var G = goneData(R), mode = G.P ? state.gone : 'old', L = mode === 'old' ? G.old : G.prev, lim = state.goneLimit;
+  var sub = mode === 'old' ? '全期間で20回以上聴いて、半年以上聴いていない <b class="num">' + fmt(L.length) + '</b>組'
+    : '<span class="nw">' + esc(G.lab) + 'に' + G.need + '回以上聴いて、</span><span class="nw">' + G.now + (G.still ? 'まだ聴いていない' : 'は聴かなかった') + ' <b class="num">' + fmt(L.length) + '</b>組</span>';
+  return gh('ご無沙汰のアーティスト', '<button type="button" class="info press" data-tip="gone" aria-expanded="false" aria-label="説明を表示">' + INFO + '</button>')
+    + (G.P ? '<div class="seg w" role="radiogroup" aria-label="ご無沙汰の種類" id="goneSeg"><span class="seg-p"></span><button type="button" data-gone="prev" class="' + (mode === 'prev' ? 'on' : '') + '">前の期間から</button><button type="button" data-gone="old" class="' + (mode === 'old' ? 'on' : '') + '">しばらくご無沙汰</button></div>' : '')
+    + '<p class="note g-sub">' + sub + '</p>'
+    + '<section class="card flush" style="margin-top:8px">' + (L.length ? L.slice(0, lim).map(function(x){ return goneRow(x, mode === 'old' ? '' : G.rowLab); }).join('') : '<p class="empty">' + (mode === 'old' ? '半年以上ご無沙汰のアーティストはいません' : 'ご無沙汰のアーティストはいません。前の期間によく聴いた人は、全員また聴いています') + '</p>')
+    + (L.length > lim ? '<button type="button" class="wide-btn press" id="moreGone">さらに表示（残り' + fmt(L.length - lim) + '組）</button>' : '') + '</section>';
 }
 function viewLog(){ return '<slot name="notice"></slot><div class="cols logcols"><slot name="log"></slot></div>'; }
 
@@ -4420,12 +4468,12 @@ function movePill(seg, instant){ if (!seg) return; var b = seg.querySelector('bu
   if (instant) p.style.transition = 'none'; p.style.left = b.offsetLeft + 'px'; p.style.width = b.offsetWidth + 'px'; if (instant) { void p.offsetWidth; p.style.transition = ''; } }
 function render(){
   var R = curRange(), A = aggregate(R.from, R.to), v = state.view; closeTip(); CH = {};
-  var segFrom = {rankSeg: grab($('rankSeg'), '.seg-p'), discSeg: grab($('discSeg'), '.seg-p')}, bnFrom = grab($('bnav'), 'button.on'), sdFrom = grab($('sideNav'), '.row.on');
-  var rk = state.custom ? state.custom.from + '-' + state.custom.to : state.preset, dataKey = v + '|' + rk, listKey = state.rank + '|' + state.disc, viewChanged = MOTION.view !== v, presetChanged = MOTION.preset && MOTION.preset !== rk;
+  var segFrom = {rankSeg: grab($('rankSeg'), '.seg-p'), discSeg: grab($('discSeg'), '.seg-p'), goneSeg: grab($('goneSeg'), '.seg-p')}, bnFrom = grab($('bnav'), 'button.on'), sdFrom = grab($('sideNav'), '.row.on');
+  var rk = state.custom ? state.custom.from + '-' + state.custom.to : state.preset, dataKey = v + '|' + rk, listKey = state.rank + '|' + state.disc + '|' + state.gone, viewChanged = MOTION.view !== v, presetChanged = MOTION.preset && MOTION.preset !== rk;
   var sk = state.custom ? state.custom.from + '-' + state.custom.to : state.preset; if (sk !== lastSync) { lastSync = sk; M.setRange(state.custom, state.preset); }
   hero(R, A);
   $('main').innerHTML = '<div class="view">' + (v === 'log' ? viewLog() : '<slot name="notice"></slot>' + (v === 'home' ? viewHome(R, A) : v === 'rank' ? viewRank(R, A) : viewAna(R, A))) + '</div>';   // 問題のお知らせは、どの画面でもいちばん上に出す（今までと同じ）
-  segSlide('rankSeg', segFrom.rankSeg); segSlide('discSeg', segFrom.discSeg); eqTiles();
+  segSlide('rankSeg', segFrom.rankSeg); segSlide('discSeg', segFrom.discSeg); segSlide('goneSeg', segFrom.goneSeg); eqTiles();
   enter(viewChanged || !MOTION.key ? 'view' : MOTION.key !== dataKey ? 'data' : MOTION.list !== listKey ? 'list' : '');
   var cur = state.custom ? 'custom' : state.preset, bad = ST.state && ST.state !== 'ok';
   $('ptabsIn').innerHTML = PRESETS.map(function(k){ var r = presetRange(k); return '<button type="button" role="radio" aria-checked="' + (cur === k) + '" class="pt press' + (cur === k ? ' on' : '') + '" data-preset="' + k + '">' + esc(k === 'month' ? '今月' : k === 'year' ? '今年' : r.short) + '</button>'; }).join('')
@@ -4528,7 +4576,7 @@ function start(){
   SONGS = M.data.S; PLAYS = M.data.P; ARTIST_IMG = M.data.A;
   NOW = M.now; FIRST = PLAYS.length ? PLAYS[0][0] : NOW; nowJ = jst(NOW); ST = RAW.status || {};
   PLAYS.forEach(function(p){ var k = p[1], s = SONGS[k]; if (SONG_FIRST[k] == null) SONG_FIRST[k] = p[0]; SONG_TOT[k] = (SONG_TOT[k] || 0) + 1;
-    s.arts.forEach(function(n){ if (!n) return; if (ARTIST_FIRST[n] == null) ARTIST_FIRST[n] = p[0]; ARTIST_TOT[n] = (ARTIST_TOT[n] || 0) + 1; ARTIST_MIN[n] = (ARTIST_MIN[n] || 0) + (s.min || 0); if (!ARTIST_PIC[n] && s.img) ARTIST_PIC[n] = s.img; }); });
+    s.arts.forEach(function(n){ if (!n) return; if (ARTIST_FIRST[n] == null) ARTIST_FIRST[n] = p[0]; ARTIST_LAST[n] = p[0]; ARTIST_TOT[n] = (ARTIST_TOT[n] || 0) + 1; ARTIST_MIN[n] = (ARTIST_MIN[n] || 0) + (s.min || 0); if (!ARTIST_PIC[n] && s.img) ARTIST_PIC[n] = s.img; }); });
   ['notice', 'progressCard', 'statusCard', 'analysis'].forEach(function(id){ var e = document.getElementById(id); if (e) { e.slot = id === 'notice' ? 'notice' : id === 'analysis' ? 'ana' : 'log'; if (id === 'analysis') e.hidden = false; host.appendChild(e); } });
   try { var sv = JSON.parse(localStorage.getItem('mll-galaxy') || '{}'); if (PRESETS.indexOf(sv.preset) >= 0) state.preset = sv.preset; if (['home','rank','ana','log'].indexOf(sv.view) >= 0) state.view = sv.view; if (sv.rank === 'artists') state.rank = 'artists';
     PREF.theme = localStorage.getItem('mll-theme') || 'auto'; } catch (e) {}
@@ -4568,7 +4616,8 @@ function start(){
     if ((b = t.closest('.bars .b'))) { var bars = b.parentNode, B = CH[bars.dataset.ch], x = B.list[+b.dataset.i]; bars.querySelectorAll('.sel').forEach(function(o){ o.classList.remove('sel'); }); b.classList.add('sel');
       $('cv-' + bars.dataset.ch).innerHTML = '<b>' + u(x.n, '回') + '</b><span>' + esc(bLabel(B, x)) + '</span>'; return; }
     if ((b = t.closest('[data-view]'))) { setView(b.dataset.view); return; }
-    if ((b = t.closest('[data-goto]'))) { setView(b.dataset.goto, b.dataset.mode); return; }
+    if ((b = t.closest('[data-goto]'))) { var gg = b.dataset.gone; if (gg) { state.gone = gg; state.goneLimit = 10; } setView(b.dataset.goto, b.dataset.mode);
+      if (gg) setTimeout(function(){ var h = root.querySelector('.g-sub'); if (h) h.scrollIntoView({block: 'center', behavior: calm ? 'auto' : 'smooth'}); }, 80); return; }
     if ((b = t.closest('#rankSeg [data-mode]'))) { state.rank = b.dataset.mode; state.limit = 50; render(); return; }
     if (t.closest('#moreRank')) { state.limit += 100; var y3 = window.scrollY; render(); window.scrollTo(0, y3); return; }
     if (t.closest('#moreMon')) { state.mon += 24; var y4 = window.scrollY; render(); window.scrollTo(0, y4); return; }
@@ -4578,6 +4627,8 @@ function start(){
     if ((b = t.closest('[data-song],[data-artist],[data-overview]'))) { M.act(b); return; }
     if ((b = t.closest('.hc'))) { root.querySelectorAll('.hc.sel').forEach(function(o){ o.classList.remove('sel'); }); b.classList.add('sel'); $('heatV').innerHTML = '<b>' + u(+b.dataset.hv, '回') + '</b><span>' + esc(b.dataset.hl) + '</span>'; return; }
     if ((b = t.closest('#discSeg [data-disc]'))) { state.disc = b.dataset.disc; state.discLimit = 10; var y = window.scrollY; render(); window.scrollTo(0, y); return; }
+    if ((b = t.closest('#goneSeg [data-gone]'))) { state.gone = b.dataset.gone; state.goneLimit = 10; var yg = window.scrollY; render(); window.scrollTo(0, yg); return; }
+    if (t.closest('#moreGone')) { state.goneLimit += 30; var yg2 = window.scrollY; render(); window.scrollTo(0, yg2); return; }
     if (t.closest('#moreDisc')) { state.discLimit += 30; var y2 = window.scrollY; render(); window.scrollTo(0, y2); return; }
     if ((b = t.closest('[data-preset]'))) { state.preset = b.dataset.preset; state.custom = null; state.limit = 50; render(); return; }
     if (t.closest('[data-pick]')) { pickSheet(); return; }
@@ -4597,7 +4648,7 @@ function start(){
     var g = e.target.closest && e.target.closest('[role="radiogroup"]');
     if (g && /^Arrow/.test(e.key)) { var bs = [].slice.call(g.querySelectorAll('button')).filter(function(x){ return x.offsetParent; }), i = bs.indexOf(document.activeElement); if (i < 0) return; e.preventDefault(); var n = bs[(i + (/Left|Up/.test(e.key) ? -1 : 1) + bs.length) % bs.length]; n.click(); var again = root.querySelector('[role="radiogroup"] .on'); (n.isConnected ? n : again).focus(); }
   });
-  window.addEventListener('resize', function(){ movePill($('rankSeg'), true); movePill($('discSeg'), true); eqTiles(); navInd($('bnav'), 'button.on'); navInd($('sideNav'), '.row.on'); });
+  window.addEventListener('resize', function(){ movePill($('rankSeg'), true); movePill($('discSeg'), true); movePill($('goneSeg'), true); eqTiles(); navInd($('bnav'), 'button.on'); navInd($('sideNav'), '.row.on'); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(eqTiles);
   // 見る領域：スクロールに合わせて薄く小さくなり、上のバーに題と数字が入る
   var tick = false;
