@@ -4379,7 +4379,7 @@ function goneData(R){
     prev.sort(function(a, b){ return b.c - a.c || b.last - a.last; });
   }
   var old = Object.keys(ARTIST_TOT).filter(function(n){ return ARTIST_TOT[n] >= 20 && NOW - ARTIST_LAST[n] >= 183 * DAY; })
-    .map(function(n){ return {n: n, img: ARTIST_PIC[n] || '', c: ARTIST_TOT[n], tot: ARTIST_TOT[n], last: ARTIST_LAST[n]}; });
+    .map(function(n){ return {n: n, img: ARTIST_IMG[n] || ARTIST_PIC[n] || '', c: ARTIST_TOT[n], tot: ARTIST_TOT[n], last: ARTIST_LAST[n]}; });
   old.sort(function(a, b){ return b.c - a.c || b.last - a.last; });
   var now = R.kind === 'month' ? (R.y === nowJ.y && R.m === nowJ.m ? '今月' : R.m + '月') : R.kind === 'year' ? (R.y === nowJ.y ? '今年' : R.y + '年') : R.kind === 'short' ? 'この' + R.short : 'この期間';
   return {P: P, lab: lab, rowLab: rowLab, need: need, prev: prev, old: old, still: R.to > NOW, now: now};
