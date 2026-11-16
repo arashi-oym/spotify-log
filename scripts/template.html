@@ -3333,7 +3333,7 @@ function mllApp(RAW){
     var t = Date.now();
     if (document.visibilityState !== 'visible' || document.body.classList.contains('modal-lock')) return;
     if (t - LOADED < minAge || t - lastTouch < minIdle) return;
-    try { sessionStorage.setItem('mll-scroll', String(window.scrollY)); } catch (e) {}
+    try { sessionStorage.setItem('mll-scroll', String(window.scrollY)); sessionStorage.setItem('mll-auto', String(window.scrollY)); } catch (e) {}
     location.reload();
   }
   document.addEventListener('visibilitychange', function(){ reloadIfOld(30*60000, 0); });
@@ -4067,6 +4067,13 @@ a.row{color:inherit;text-decoration:none}
 .row.gone .g-ago .g-d{white-space:nowrap}.row.gone .g-ago b{font-size:15.5px;margin-right:1px}
 .row.gone .g-ago small{font-size:11.5px;font-weight:500;color:var(--t2)}
 .row.gone .r-s{white-space:normal;overflow:visible;text-overflow:clip}
+/* 列をまたいでも「さらに表示」はその一覧の最後の行から離さない */
+.cols .card.flush .wide-btn{break-before:avoid;break-inside:avoid}
+.cols .card.flush>.row:last-of-type{break-after:avoid}
+.cols .ghg{break-inside:avoid}
+.card.flush .d-note{margin:0;padding:6px 16px 12px;break-before:avoid}
+.cols .card.flush.keep{break-inside:avoid}
+.cols .kg{break-inside:avoid}
 </style><header class="bar" id="bar"><div class="bar-in">
   <div class="bar-t" aria-hidden="true"><span id="barT">My Listening Log</span><small class="num" id="barS"></small></div>
   <button type="button" class="ib press" id="searchBtn" aria-label="曲・アーティストを検索"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
@@ -4360,7 +4367,7 @@ function viewAna(R, A){
   s += '</div><div class="stack">' + gh('新しい出会い') + '<div class="tiles"><div class="tile"><span class="tile-k">' + dot('note', 'green') + '<span><span class="nw">初めて</span><span class="nw">聴いた曲</span></span></span><span class="tile-v">' + u(nS.length, '曲') + '</span><span class="tile-s">聴いた曲の' + Math.round(nS.length / A.songs.length * 100) + '%</span></div><div class="tile"><span class="tile-k">' + dot('user', 'blue') + '<span><span class="nw">初めての</span><span class="nw">アーティスト</span></span></span><span class="tile-v">' + u(nA.length, '組') + '</span><span class="tile-s"><span class="nw">聴いた</span><span class="nw">アーティストの' + Math.round(nA.length / A.artists.length * 100) + '%</span></span></div></div>'
     + '<div class="seg w" role="radiogroup" aria-label="出会いの種類" id="discSeg" style="margin-top:10px"><span class="seg-p"></span><button type="button" data-disc="songs" class="' + (isS ? 'on' : '') + '">曲</button><button type="button" data-disc="artists" class="' + (!isS ? 'on' : '') + '">アーティスト</button></div>'
     + '<section class="card flush" style="margin-top:10px">' + (L.length ? L.slice(0, state.discLimit).map(function(x){ return isS ? songRow(x, true, dmax, '出会い：' + ymd(x.first)) : artistRow(x, true, dmax, '出会い：' + ymd(x.first)); }).join('') : '<p class="empty">この期間に初めて聴いた' + (isS ? '曲' : 'アーティスト') + 'はありません</p>')
-    + (L.length > state.discLimit ? '<button type="button" class="wide-btn press" id="moreDisc">さらに表示（残り' + fmt(L.length - state.discLimit) + (isS ? '曲' : '組') + '）</button>' : '') + '</section>' + (L.length ? '<p class="note" style="margin:8px 4px 0">回数は、出会ってから今までに聴いた合計です。</p>' : '');
+    + (L.length > state.discLimit ? '<button type="button" class="wide-btn press" id="moreDisc">さらに表示（残り' + fmt(L.length - state.discLimit) + (isS ? '曲' : '組') + '）</button>' : '') + (L.length ? '<p class="note d-note">回数は、出会ってから今までに聴いた合計です。</p>' : '') + '</section>';
   s += '</div><div class="stack">' + goneSection(R);
   return s + '</div><slot name="ana"></slot></div>';
 }
@@ -4473,6 +4480,15 @@ function render(){
   var sk = state.custom ? state.custom.from + '-' + state.custom.to : state.preset; if (sk !== lastSync) { lastSync = sk; M.setRange(state.custom, state.preset); }
   hero(R, A);
   $('main').innerHTML = '<div class="view">' + (v === 'log' ? viewLog() : '<slot name="notice"></slot>' + (v === 'home' ? viewHome(R, A) : v === 'rank' ? viewRank(R, A) : viewAna(R, A))) + '</div>';   // 問題のお知らせは、どの画面でもいちばん上に出す（今までと同じ）
+  // 短い一覧（12行以下）は列の途中で切らない（1〜2行だけ次の列に残るのを防ぐ）
+  $('main').querySelectorAll('.cols .card.flush').forEach(function(c){ if (c.querySelectorAll(':scope > .row').length <= 12) c.classList.add('keep'); });
+  // 短い一覧は、その見出し・切り替え・説明の行と1組にして、列をまたいで離れないようにする
+  $('main').querySelectorAll('.cols .card.flush.keep').forEach(function(c){ var parts = [c], e = c.previousElementSibling;
+    while (e && !e.classList.contains('gh') && !e.classList.contains('card') && !e.classList.contains('ghg') && !e.classList.contains('feat')) { parts.unshift(e); e = e.previousElementSibling; }
+    if (e && e.classList.contains('gh')) parts.unshift(e);   // 1位のカード（feat）がある一覧は、1位と見出しが1組、残りの一覧は単独で動けるようにして、列の高さをそろえやすくする
+    if (parts.length < 2) return; var g = document.createElement('div'); g.className = 'kg'; c.parentNode.insertBefore(g, parts[0]); parts.forEach(function(x){ g.appendChild(x); }); });
+  // 見出しと、その下のカード（長い一覧以外）を1組にして、列をまたいで離れないようにする
+  $('main').querySelectorAll('.cols .gh').forEach(function(g){ var nx = g.nextElementSibling; if (!nx || nx.classList.contains('flush') || nx.tagName === 'SLOT') return; var w = document.createElement('div'); w.className = 'ghg'; g.parentNode.insertBefore(w, g); w.appendChild(g); w.appendChild(nx); });
   segSlide('rankSeg', segFrom.rankSeg); segSlide('discSeg', segFrom.discSeg); segSlide('goneSeg', segFrom.goneSeg); eqTiles();
   enter(viewChanged || !MOTION.key ? 'view' : MOTION.key !== dataKey ? 'data' : MOTION.list !== listKey ? 'list' : '');
   var cur = state.custom ? 'custom' : state.preset, bad = ST.state && ST.state !== 'ok';
@@ -4578,8 +4594,14 @@ function start(){
   PLAYS.forEach(function(p){ var k = p[1], s = SONGS[k]; if (SONG_FIRST[k] == null) SONG_FIRST[k] = p[0]; SONG_TOT[k] = (SONG_TOT[k] || 0) + 1;
     s.arts.forEach(function(n){ if (!n) return; if (ARTIST_FIRST[n] == null) ARTIST_FIRST[n] = p[0]; ARTIST_LAST[n] = p[0]; ARTIST_TOT[n] = (ARTIST_TOT[n] || 0) + 1; ARTIST_MIN[n] = (ARTIST_MIN[n] || 0) + (s.min || 0); if (!ARTIST_PIC[n] && s.img) ARTIST_PIC[n] = s.img; }); });
   ['notice', 'progressCard', 'statusCard', 'analysis'].forEach(function(id){ var e = document.getElementById(id); if (e) { e.slot = id === 'notice' ? 'notice' : id === 'analysis' ? 'ana' : 'log'; if (id === 'analysis') e.hidden = false; host.appendChild(e); } });
-  try { var sv = JSON.parse(localStorage.getItem('mll-galaxy') || '{}'); if (PRESETS.indexOf(sv.preset) >= 0) state.preset = sv.preset; if (['home','rank','ana','log'].indexOf(sv.view) >= 0) state.view = sv.view; if (sv.rank === 'artists') state.rank = 'artists';
-    PREF.theme = localStorage.getItem('mll-theme') || 'auto'; } catch (e) {}
+  // 開いたとき（自分で開く・再読み込みする）は、いつも「ホーム・直近7日間・いちばん上」から始める。
+  // ページが新しい記録を取り込むために自分で再読み込みしたときだけは、見ていた画面と位置に戻す
+  var autoY = null; try { autoY = sessionStorage.getItem('mll-auto'); sessionStorage.removeItem('mll-auto'); } catch (e) {}
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+  try { var sv = JSON.parse(localStorage.getItem('mll-galaxy') || '{}'); if (sv.rank === 'artists') state.rank = 'artists';
+    if (autoY != null) { if (PRESETS.indexOf(sv.preset) >= 0) state.preset = sv.preset; if (['home','rank','ana','log'].indexOf(sv.view) >= 0) state.view = sv.view; } } catch (e) {}
+  if (autoY == null) { state.view = 'home'; state.preset = '7d'; state.custom = null; }
+  try { PREF.theme = localStorage.getItem('mll-theme') || 'auto'; } catch (e) {}
   applyPref();
   $('foot').textContent = '再生時間は「曲の長さ×回数」で計算した目安です ・ ' + ((RAW.downloads || {}).version || '');
   M.keepAnalysis();
@@ -4608,6 +4630,9 @@ function start(){
   host.dataset.gtl = 'cap';
   render();
   deEmoji();
+  // 位置：開いたときはいちばん上。自動の再読み込みのときは、見ていた位置に戻す（画面ができてから）
+  (function(){ var y = autoY == null ? 0 : (+autoY || 0); function go(){ try { window.scrollTo(0, y); } catch (e) {} }
+    go(); requestAnimationFrame(go); setTimeout(go, 120); setTimeout(go, 400); window.addEventListener('pageshow', function(ev){ if (ev.persisted) return; go(); }, {once: true}); })();
 
   root.addEventListener('click', function(e){
     var t = e.target, b, open = $('sheet').classList.contains('open');
